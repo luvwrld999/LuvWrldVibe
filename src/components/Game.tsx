@@ -10,7 +10,7 @@ const PLAYER_SIZE = 32;
 const ENEMY_TYPES = ['bat', 'demon', 'skeleton', 'hunter', 'dodger'] as const;
 type EnemyType = (typeof ENEMY_TYPES)[number];
 
-type WorldType = 'graveyard' | 'forest' | 'crypt' | 'disco' | 'gold_mine' | 'gg' | 'halloween' | 'christmas' | 'new_year' | 'valentines';
+type WorldType = 'graveyard' | 'forest' | 'crypt' | 'disco' | 'gold_mine' | 'gg' | 'halloween' | 'christmas' | 'new_year' | 'valentines' | 'easter' | 'out_of_this_world';
 
 interface Objective {
   text: string;
@@ -64,20 +64,25 @@ interface Particle {
 class Bullet {
   x: number;
   y: number;
+  vx: number;
+  vy: number;
   radius = 4;
   speed = 7;
   active = true;
   damage: number;
 
-  constructor(x: number, y: number, damage = 1) {
+  constructor(x: number, y: number, damage = 1, vx = 7, vy = 0) {
     this.x = x;
     this.y = y;
     this.damage = damage;
+    this.vx = vx;
+    this.vy = vy;
   }
 
   update() {
-    this.x += this.speed;
-    if (this.x > CANVAS_WIDTH) this.active = false;
+    this.x += this.vx;
+    this.y += this.vy;
+    if (this.x > CANVAS_WIDTH || this.y < 0 || this.y > CANVAS_HEIGHT) this.active = false;
   }
 
   draw(ctx: CanvasRenderingContext2D) {
@@ -209,7 +214,7 @@ class Enemy {
     if (this.x < -this.width) this.active = false;
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
+  draw(ctx: CanvasRenderingContext2D, world: WorldType) {
     ctx.save();
     ctx.translate(this.x, this.y);
     
@@ -227,6 +232,82 @@ class Enemy {
       return;
     }
     const flap = Math.sin(time * 2) * 10;
+
+    if (world === 'gg') {
+      if (this.type === 'bat') {
+        // Chinese Carryout Box
+        ctx.fillStyle = '#f3f4f6';
+        ctx.beginPath();
+        ctx.moveTo(5, 5);
+        ctx.lineTo(35, 5);
+        ctx.lineTo(30, 35);
+        ctx.lineTo(10, 35);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Handle
+        ctx.beginPath();
+        ctx.moveTo(10, 5);
+        ctx.quadraticCurveTo(20, -10, 30, 5);
+        ctx.stroke();
+        // Logo
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('福', 15, 25);
+      } else if (this.type === 'demon') {
+        // Mug of Coffee
+        const hover = Math.sin(time) * 3;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.roundRect(10, 10 + hover, 20, 25, 4);
+        ctx.fill();
+        // Handle
+        ctx.beginPath();
+        ctx.arc(30, 22 + hover, 6, -Math.PI/2, Math.PI/2);
+        ctx.stroke();
+        // Coffee
+        ctx.fillStyle = '#451a03';
+        ctx.fillRect(12, 12 + hover, 16, 4);
+        // Steam
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.beginPath();
+        ctx.moveTo(15, 8 + hover);
+        ctx.quadraticCurveTo(12, 4 + hover, 15, 0 + hover);
+        ctx.moveTo(25, 8 + hover);
+        ctx.quadraticCurveTo(22, 4 + hover, 25, 0 + hover);
+        ctx.stroke();
+      } else if (this.type === 'skeleton') {
+        // Cowgirl Boots
+        ctx.fillStyle = '#78350f';
+        ctx.beginPath();
+        ctx.moveTo(10, 5);
+        ctx.lineTo(25, 5);
+        ctx.lineTo(25, 25);
+        ctx.lineTo(35, 35);
+        ctx.lineTo(10, 35);
+        ctx.closePath();
+        ctx.fill();
+        // Heel
+        ctx.fillStyle = '#451a03';
+        ctx.fillRect(10, 35, 5, 5);
+        // Detail
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(15, 10);
+        ctx.lineTo(20, 20);
+        ctx.stroke();
+      } else {
+        // Default for other types in GG
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(0, 0, this.width, this.height);
+      }
+      ctx.restore();
+      this.drawHealth(ctx);
+      return;
+    }
     
     if (this.type === 'bat') {
       // Wings
@@ -362,7 +443,10 @@ class Enemy {
     }
     
     ctx.restore();
+    this.drawHealth(ctx);
+  }
 
+  private drawHealth(ctx: CanvasRenderingContext2D) {
     // Health Bar
     if (this.health < this.maxHealth) {
       const barWidth = 30;
@@ -378,13 +462,13 @@ class Enemy {
 class PowerUp {
   x: number;
   y: number;
-  type: 'upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin';
+  type: 'upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin' | 'spread' | 'rapid' | 'power';
   upgradeType?: 'speed' | 'damage' | 'maxLives';
   radius = 15;
   speed = 3;
   active = true;
 
-  constructor(x: number, y: number, type: 'upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin', upgradeType?: 'speed' | 'damage' | 'maxLives') {
+  constructor(x: number, y: number, type: 'upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin' | 'spread' | 'rapid' | 'power', upgradeType?: 'speed' | 'damage' | 'maxLives') {
     this.x = x;
     this.y = y;
     this.type = type;
@@ -409,7 +493,10 @@ class PowerUp {
       life: '#ef4444',
       invincible: '#ffffff',
       magnet: '#a855f7',
-      coin: '#facc15'
+      coin: '#facc15',
+      spread: '#22c55e',
+      rapid: '#06b6d4',
+      power: '#f97316'
     };
 
     ctx.fillStyle = colors[this.type];
@@ -421,6 +508,12 @@ class PowerUp {
       icon = this.upgradeType === 'speed' ? '⚡' : this.upgradeType === 'damage' ? '⚔️' : '❤️+';
     } else if (this.type === 'coin') {
       icon = '💰';
+    } else if (this.type === 'spread') {
+      icon = '🔱';
+    } else if (this.type === 'rapid') {
+      icon = '⏩';
+    } else if (this.type === 'power') {
+      icon = '💥';
     } else {
       icon = this.type === 'invincible' ? '⭐' : this.type === 'magnet' ? '🧲' : this.type[0].toUpperCase();
     }
@@ -560,6 +653,125 @@ const HOLIDAYS = [
 
 const soundManager = new SoundManager();
 
+const PreviewCanvas = ({ customization }: { customization: any }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const trailRef = useRef<Point[]>([]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    const render = () => {
+      const now = Date.now();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const ghostX = canvas.width / 2 + Math.sin(now * 0.005) * 50;
+      const ghostY = canvas.height / 2 + Math.cos(now * 0.005) * 10;
+      
+      trailRef.current.unshift({ x: ghostX, y: ghostY });
+      if (trailRef.current.length > 20) trailRef.current.pop();
+      
+      // Draw Trail
+      trailRef.current.forEach((p, i) => {
+        const alpha = 1 - i / 20;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        
+        if (customization.costume === 'vibe_coding') {
+          const hue = (now * 0.1 + i * 10) % 360;
+          ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, (PLAYER_SIZE / 2) * alpha, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (customization.trailPattern === 'ripple') {
+          const r = (PLAYER_SIZE / 2) * alpha * (1 + Math.sin(now * 0.01 + i) * 0.5);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+          ctx.strokeStyle = customization.trailColor + Math.floor(alpha * 128).toString(16).padStart(2, '0');
+          ctx.lineWidth = 2 * alpha;
+          ctx.stroke();
+        } else if (customization.costume === 'cosmic_wanderer') {
+          const r = (PLAYER_SIZE / 1.5) * alpha;
+          const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+          const hue = (now * 0.1 + i * 10) % 360;
+          grad.addColorStop(0, `hsla(${hue}, 70%, 50%, ${alpha * 0.3})`);
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (customization.trailPattern === 'starry') {
+          const r = (PLAYER_SIZE / 2) * alpha * (0.8 + Math.sin(now * 0.01 + i) * 0.2);
+          ctx.beginPath();
+          for (let j = 0; j < 5; j++) {
+            const angle = (j * 4 * Math.PI) / 5 - Math.PI / 2 + now * 0.002;
+            ctx.lineTo(p.x + Math.cos(angle) * r, p.y + Math.sin(angle) * r);
+          }
+          ctx.closePath();
+          ctx.fillStyle = customization.trailColor;
+          ctx.fill();
+        } else {
+          ctx.fillStyle = customization.trailColor;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, (PLAYER_SIZE / 2) * alpha, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+
+      // Draw Ghost
+      ctx.save();
+      ctx.translate(ghostX, ghostY);
+      
+      if (customization.costume === 'ghostly_dance') {
+        const pulse = 1.0 + (Math.sin(now * 0.01) * 0.1);
+        ctx.scale(pulse, pulse);
+      }
+      
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = customization.ghostColor;
+      
+      if (customization.costume === 'vibe_coding') {
+        const grad = ctx.createLinearGradient(-15, -15, 15, 15);
+        grad.addColorStop(0, `hsl(${(now * 0.1) % 360}, 100%, 70%)`);
+        grad.addColorStop(1, `hsl(${(now * 0.1 + 180) % 360}, 100%, 70%)`);
+        ctx.fillStyle = grad;
+      } else if (customization.costume === 'cosmic_wanderer') {
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
+        grad.addColorStop(0, '#4c1d95');
+        grad.addColorStop(1, '#1e1b4b');
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = customization.ghostColor;
+      }
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 15, Math.PI, 0);
+      ctx.lineTo(15, 15);
+      ctx.lineTo(-15, 15);
+      ctx.closePath();
+      ctx.fill();
+      
+      if (customization.costume === 'cosmic_wanderer') {
+        ctx.fillStyle = '#fff';
+        for (let i = 0; i < 3; i++) {
+          ctx.fillRect(Math.sin(now * 0.01 + i) * 8, Math.cos(now * 0.01 + i) * 8, 1, 1);
+        }
+      }
+
+      ctx.restore();
+      animationFrameId = requestAnimationFrame(render);
+    };
+    render();
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [customization]);
+
+  return <canvas ref={canvasRef} width={200} height={100} className="w-full h-full" />;
+};
+
 // --- Main Component ---
 
 export default function Game() {
@@ -591,8 +803,8 @@ export default function Game() {
   const [customization, setCustomization] = useState({ 
     ghostColor: '#a855f7', 
     trailColor: '#d8b4fe',
-    costume: 'none' as 'none' | 'ghostly_dance' | 'vibe_coding',
-    trailPattern: 'standard' as 'standard' | 'starry' | 'glitch' | 'sparkle'
+    costume: 'none' as 'none' | 'ghostly_dance' | 'vibe_coding' | 'cosmic_wanderer',
+    trailPattern: 'standard' as 'standard' | 'starry' | 'glitch' | 'sparkle' | 'ripple'
   });
   const [unlockedWorlds, setUnlockedWorlds] = useState<WorldType[]>(['graveyard', 'gg']);
   const [selectedWorld, setSelectedWorld] = useState<WorldType>('graveyard');
@@ -649,8 +861,12 @@ export default function Game() {
     upgrades: {
       speed: 0,
       damage: 1,
-      maxLives: 5
-    }
+      maxLives: 5,
+      spread: 0,
+      bulletSpeed: 0,
+      bulletPower: 0
+    },
+    form: 'standard' as 'standard' | 'wide' | 'fast' | 'powerful'
   });
 
   const entitiesRef = useRef({
@@ -929,11 +1145,25 @@ export default function Game() {
         // Shooting
         const shotDelay = 100;
         if (isShooting && now - player.lastShot > shotDelay) {
-          const bullet = new Bullet(player.x + 20, player.y, player.upgrades.damage);
-          player.bullets.push(bullet);
+          const bulletSpeed = 7 + player.upgrades.bulletSpeed * 2;
+          const bulletDamage = player.upgrades.damage + player.upgrades.bulletPower;
+          
+          // Spread shot
+          if (player.upgrades.spread > 0) {
+            const count = 1 + player.upgrades.spread * 2;
+            for (let i = 0; i < count; i++) {
+              const angle = (i - (count - 1) / 2) * 0.2;
+              const vx = Math.cos(angle) * bulletSpeed;
+              const vy = Math.sin(angle) * bulletSpeed;
+              player.bullets.push(new Bullet(player.x + 20, player.y, bulletDamage, vx, vy));
+            }
+          } else {
+            player.bullets.push(new Bullet(player.x + 20, player.y, bulletDamage, bulletSpeed, 0));
+          }
+          
           player.lastShot = now;
           soundManager.shoot();
-          setScreenShake(2); // Small shake on shoot
+          setScreenShake(2);
           
           if (tutorialStep === 1) {
             setTutorialStep(2);
@@ -1267,6 +1497,18 @@ export default function Game() {
             } else if (p.type === 'coin') {
               setCoins(c => c + 10);
               spawnFloatingText(p.x, p.y, "+10 COINS!", "#facc15");
+            } else if (p.type === 'spread') {
+              player.upgrades.spread += 1;
+              player.form = 'wide';
+              spawnFloatingText(p.x, p.y, "WIDE SHOT!", "#22c55e");
+            } else if (p.type === 'rapid') {
+              player.upgrades.bulletSpeed += 1;
+              player.form = 'fast';
+              spawnFloatingText(p.x, p.y, "RAPID FIRE!", "#06b6d4");
+            } else if (p.type === 'power') {
+              player.upgrades.bulletPower += 1;
+              player.form = 'powerful';
+              spawnFloatingText(p.x, p.y, "POWER SHOT!", "#f97316");
             } else if (p.type === 'upgrade') {
               if (p.upgradeType === 'speed') {
                 player.upgrades.speed += 1;
@@ -1331,7 +1573,8 @@ export default function Game() {
         halloween: ['#0c0a09', '#431407'],
         christmas: ['#064e3b', '#14532d'],
         new_year: ['#020617', '#1e1b4b'],
-        valentines: ['#4c0519', '#831843']
+        valentines: ['#4c0519', '#831843'],
+        out_of_this_world: ['#020617', '#1e1b4b']
       };
       const skyGradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
       skyGradient.addColorStop(0, skyGradients[selectedWorld]?.[0] || '#020617');
@@ -1361,6 +1604,28 @@ export default function Game() {
           const y = (i * 71) % CANVAS_HEIGHT;
           ctx.globalAlpha = 0.5 + Math.sin(now * 0.001 + i) * 0.5;
           ctx.fillRect(x, y, 1, 1);
+        }
+        ctx.globalAlpha = 1;
+      } else if (selectedWorld === 'out_of_this_world') {
+        // Space / Galaxy Background
+        ctx.fillStyle = '#fff';
+        for (let i = 0; i < 100; i++) {
+          const x = (i * 137 + entities.bgX * 0.1) % CANVAS_WIDTH;
+          const y = (i * 71) % CANVAS_HEIGHT;
+          const size = Math.random() * 2;
+          ctx.globalAlpha = 0.3 + Math.sin(now * 0.002 + i) * 0.7;
+          ctx.fillRect(x, y, size, size);
+        }
+        // Nebulae
+        for (let i = 0; i < 3; i++) {
+          const x = (entities.bgX * 0.05 + i * 400) % (CANVAS_WIDTH + 400) - 200;
+          const y = 100 + i * 100;
+          const grad = ctx.createRadialGradient(x, y, 0, x, y, 200);
+          const hue = (i * 120 + now * 0.01) % 360;
+          grad.addColorStop(0, `hsla(${hue}, 70%, 50%, 0.1)`);
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         }
         ctx.globalAlpha = 1;
       } else if (selectedWorld === 'crypt') {
@@ -1750,7 +2015,27 @@ export default function Game() {
             color = customization.trailColor + Math.floor(alpha * 128).toString(16).padStart(2, '0');
             ctx.fillStyle = color;
             ctx.beginPath();
-            if (customization.trailPattern === 'starry') {
+            if (customization.trailPattern === 'ripple') {
+              const r = (PLAYER_SIZE / 2) * alpha * (1 + Math.sin(now * 0.01 + i) * 0.5);
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+              ctx.strokeStyle = customization.trailColor + Math.floor(alpha * 128).toString(16).padStart(2, '0');
+              ctx.lineWidth = 2 * alpha;
+              ctx.stroke();
+              return;
+            } else if (customization.costume === 'cosmic_wanderer') {
+              // Nebula Trail
+              const r = (PLAYER_SIZE / 1.5) * alpha;
+              const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+              const hue = (now * 0.1 + i * 10) % 360;
+              grad.addColorStop(0, `hsla(${hue}, 70%, 50%, ${alpha * 0.3})`);
+              grad.addColorStop(1, 'transparent');
+              ctx.fillStyle = grad;
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+              ctx.fill();
+              return;
+            } else if (customization.trailPattern === 'starry') {
               const r = (PLAYER_SIZE / 2) * alpha * (0.8 + Math.sin(now * 0.01 + i) * 0.2);
               ctx.beginPath();
               for (let j = 0; j < 5; j++) {
@@ -1811,10 +2096,30 @@ export default function Game() {
           const glowIntensity = 20 + (beat % 2 === 0 ? 30 : 0);
           ctx.shadowBlur = glowIntensity;
           ctx.shadowColor = customization.ghostColor;
+        } else if (customization.costume === 'cosmic_wanderer') {
+          ctx.shadowBlur = 25;
+          ctx.shadowColor = '#a855f7';
+          // Swirling galaxy pattern
+          const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, PLAYER_SIZE / 2);
+          grad.addColorStop(0, '#1e1b4b');
+          grad.addColorStop(0.5, '#4c1d95');
+          grad.addColorStop(1, '#020617');
+          ctx.fillStyle = grad;
         } else {
           // Default subtle glow
           ctx.shadowBlur = 15;
           ctx.shadowColor = customization.ghostColor;
+        }
+
+        // Character Form Changes
+        if (player.form === 'wide') {
+          ctx.scale(1.3, 0.8);
+        } else if (player.form === 'fast') {
+          ctx.scale(0.8, 1.3);
+        } else if (player.form === 'powerful') {
+          ctx.scale(1.2, 1.2);
+          ctx.shadowBlur += 20;
+          ctx.shadowColor = '#f97316';
         }
       
       // Body Shading
@@ -1836,6 +2141,12 @@ export default function Game() {
         gradient.addColorStop(0.5, `hsl(${(now * 0.1 + 120) % 360}, 100%, 70%)`);
         gradient.addColorStop(1, `hsl(${(now * 0.1 + 240) % 360}, 100%, 70%)`);
         ctx.fillStyle = gradient;
+      } else if (customization.costume === 'cosmic_wanderer') {
+        // Galaxy pattern with stars
+        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, PLAYER_SIZE / 2);
+        gradient.addColorStop(0, '#4c1d95');
+        gradient.addColorStop(1, '#1e1b4b');
+        ctx.fillStyle = gradient;
       } else {
         ctx.fillStyle = customization.ghostColor;
       }
@@ -1848,6 +2159,16 @@ export default function Game() {
       }
       ctx.lineTo(-PLAYER_SIZE / 2 + 2, -2);
       ctx.fill();
+
+      if (customization.costume === 'cosmic_wanderer') {
+        // Tiny stars inside
+        ctx.fillStyle = '#fff';
+        for (let i = 0; i < 5; i++) {
+          const sx = Math.sin(now * 0.01 + i) * 10;
+          const sy = Math.cos(now * 0.01 + i) * 10;
+          ctx.fillRect(sx, sy, 1, 1);
+        }
+      }
 
       // Highlight
       ctx.fillStyle = '#ffffff44';
@@ -1899,7 +2220,7 @@ export default function Game() {
       
     // Entities
       player.bullets.forEach(b => b.draw(ctx));
-      entities.enemies.forEach(e => e.draw(ctx));
+      entities.enemies.forEach(e => e.draw(ctx, selectedWorld));
       entities.wisps.forEach(w => w.draw(ctx));
       entities.powerups.forEach(p => p.draw(ctx));
       entities.particles.forEach(p => {
@@ -2171,6 +2492,7 @@ export default function Game() {
               <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-4">Special Costumes</h3>
               {[
                 { id: 'vibe_coding', name: 'Vibe Coding, Gemini Style', icon: '🌈', cost: 1, desc: 'Trippy rainbow tie-dye trail' },
+                { id: 'cosmic_wanderer', name: 'Cosmic Wanderer', icon: '🌌', cost: 150, desc: 'Swirling galaxy with nebula trail' },
               ].map((costume) => (
                 <div key={costume.id} className="p-3 bg-slate-800/50 rounded-2xl border border-slate-700/50 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -2207,6 +2529,7 @@ export default function Game() {
                 { id: 'crypt', name: 'Forgotten Crypt', icon: '💀', cost: 1000, desc: 'A dusty, ancient tomb with magical aura' },
                 { id: 'disco', name: 'Disco Inferno', icon: '🕺', cost: 2500, desc: 'A neon-lit spectral dance floor' },
                 { id: 'gold_mine', name: 'Gilded Grotto', icon: '⛏️', cost: 5000, desc: 'A mine filled with spectral gold' },
+                { id: 'out_of_this_world', name: 'Out of this World', icon: '🌌', cost: 99, desc: 'A cosmic journey through the stars' },
               ].map((world) => (
                 <div key={world.id} className="p-3 bg-slate-800/50 rounded-2xl border border-slate-700/50 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -2343,16 +2666,18 @@ export default function Game() {
                 <div className="grid grid-cols-1 gap-2 max-h-[180px] overflow-y-auto pr-2 custom-scrollbar">
                   {unlockedWorlds.map(world => {
                     const worldInfo = {
-                      graveyard: { name: 'Graveyard', icon: '🪦' },
-                      forest: { name: 'Whispering Woods', icon: '🌲' },
-                      crypt: { name: 'Forgotten Crypt', icon: '💀' },
-                      disco: { name: 'Disco Inferno', icon: '🕺' },
-                      gold_mine: { name: 'Gilded Grotto', icon: '⛏️' },
-                      gg: { name: 'GG', icon: '🍂' },
-                      halloween: { name: 'Hallowed Hollow', icon: '🎃', holiday: true },
-                      christmas: { name: 'Winter Wonderland', icon: '🎄', holiday: true },
-                      new_year: { name: 'Midnight Gala', icon: '🎆', holiday: true },
-                      valentines: { name: 'Love Labyrinth', icon: '💝', holiday: true }
+                      graveyard: { name: 'Graveyard', icon: '🪦', colors: ['#020617', '#1e1b4b'] },
+                      forest: { name: 'Whispering Woods', icon: '🌲', colors: ['#064e3b', '#022c22'] },
+                      crypt: { name: 'Forgotten Crypt', icon: '💀', colors: ['#450a0a', '#1a0505'] },
+                      disco: { name: 'Disco Inferno', icon: '🕺', colors: ['#1e1b4b', '#4c1d95'] },
+                      gold_mine: { name: 'Gilded Grotto', icon: '⛏️', colors: ['#451a03', '#78350f'] },
+                      gg: { name: 'GG', icon: '🍂', colors: ['#92400e', '#78350f'] },
+                      halloween: { name: 'Hallowed Hollow', icon: '🎃', holiday: true, colors: ['#0c0a09', '#431407'] },
+                      christmas: { name: 'Winter Wonderland', icon: '🎄', holiday: true, colors: ['#064e3b', '#14532d'] },
+                      new_year: { name: 'Midnight Gala', icon: '🎆', holiday: true, colors: ['#020617', '#1e1b4b'] },
+                      valentines: { name: 'Love Labyrinth', icon: '💝', holiday: true, colors: ['#4c0519', '#831843'] },
+                      easter: { name: 'Easter Egg-stravaganza', icon: '🐰', holiday: true, colors: ['#0ea5e9', '#38bdf8'] },
+                      out_of_this_world: { name: 'Out of this World', icon: '🌌', colors: ['#020617', '#1e1b4b'] }
                     }[world];
                     
                     if (!worldInfo) return null;
@@ -2364,14 +2689,18 @@ export default function Game() {
                           setSelectedWorld(world);
                           soundManager.click();
                         }}
-                        className={`p-2 rounded-xl font-bold text-xs transition-all border flex items-center justify-between gap-3 ${selectedWorld === world ? 'bg-purple-600 border-purple-400' : 'bg-slate-700 border-slate-600 hover:bg-slate-600'}`}
+                        className={`p-3 rounded-2xl font-bold text-xs transition-all border flex items-center justify-between gap-3 relative overflow-hidden ${selectedWorld === world ? 'border-purple-400' : 'border-slate-800 hover:border-slate-700'}`}
                       >
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg">{worldInfo.icon}</span>
-                          <span>{worldInfo.name.toUpperCase()}</span>
+                        <div className="absolute inset-0 opacity-20" style={{ background: `linear-gradient(to right, ${worldInfo.colors[0]}, ${worldInfo.colors[1]})` }} />
+                        <div className="flex items-center gap-3 relative z-10">
+                          <span className="text-2xl">{worldInfo.icon}</span>
+                          <span className="font-black tracking-tight">{worldInfo.name.toUpperCase()}</span>
                         </div>
                         {worldInfo.holiday && (
-                          <span className="text-[8px] bg-purple-900/50 px-1.5 py-0.5 rounded-full text-purple-300 font-black tracking-widest">HOLIDAY WORLD</span>
+                          <span className="relative z-10 text-[8px] bg-purple-900/80 px-2 py-0.5 rounded-full text-purple-200 font-black tracking-widest border border-purple-500/30">HOLIDAY</span>
+                        )}
+                        {selectedWorld === world && (
+                          <div className="relative z-10 w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
                         )}
                       </button>
                     );
@@ -2403,13 +2732,9 @@ export default function Game() {
           <div className="max-w-md w-full bg-slate-900/50 p-6 rounded-3xl border border-slate-800 shadow-2xl flex flex-col max-h-[95%]">
             <h2 className="text-2xl font-black tracking-tight mb-4 shrink-0">CUSTOMIZE GHOST</h2>
             
-            <div className="flex justify-center mb-4 shrink-0">
-              <div className="relative w-24 h-24 flex items-center justify-center">
-                <div 
-                  className="absolute w-16 h-16 rounded-full blur-xl opacity-50"
-                  style={{ backgroundColor: customization.ghostColor }}
-                />
-                <Ghost size={48} style={{ color: customization.ghostColor }} />
+            <div className="flex justify-center mb-4 shrink-0 bg-slate-950/50 rounded-2xl p-4 border border-slate-800">
+              <div className="relative w-48 h-24 flex items-center justify-center overflow-hidden">
+                <PreviewCanvas customization={customization} />
               </div>
             </div>
 
@@ -2421,6 +2746,7 @@ export default function Game() {
                     { id: 'none', name: 'Standard Ghost', desc: 'A classic spectral form' },
                     { id: 'ghostly_dance', name: 'Ghostly Dance', desc: 'Pulsates to the spectral beat' },
                     { id: 'vibe_coding', name: 'Vibe Coding, Gemini Style', desc: 'Trippy rainbow tie-dye trail' },
+                    { id: 'cosmic_wanderer', name: 'Cosmic Wanderer', desc: 'Swirling galaxy with nebula trail' },
                   ].filter(c => unlockedCostumes.includes(c.id)).map(costume => (
                     <button 
                       key={costume.id}
@@ -2446,7 +2772,8 @@ export default function Game() {
                     { id: 'standard', name: 'Standard' },
                     { id: 'starry', name: 'Starry' },
                     { id: 'glitch', name: 'Glitch' },
-                    { id: 'sparkle', name: 'Sparkle' }
+                    { id: 'sparkle', name: 'Sparkle' },
+                    { id: 'ripple', name: 'Ripple' }
                   ].map(pattern => (
                     <button 
                       key={pattern.id}
@@ -2459,6 +2786,15 @@ export default function Game() {
                       {pattern.name}
                     </button>
                   ))}
+                  <button 
+                    onClick={() => {
+                      setCustomization(c => ({ ...c, trailPattern: 'standard' }));
+                      soundManager.click();
+                    }}
+                    className="py-2 rounded-xl border-2 border-slate-800 bg-slate-800/30 hover:border-slate-700 text-[10px] font-black text-slate-400 uppercase tracking-tighter"
+                  >
+                    RESET
+                  </button>
                 </div>
               </div>
 
