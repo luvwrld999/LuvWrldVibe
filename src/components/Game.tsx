@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Ghost, Heart, Play, RotateCcw, Trophy } from 'lucide-react';
+import { Ghost, Heart, Play, RotateCcw, Trophy, Calendar } from 'lucide-react';
 
 // --- Constants & Types ---
 
@@ -42,6 +42,7 @@ interface Boss {
   phase: number;
   lastAttack: number;
   attackPattern: number;
+  telegraphing: boolean;
 }
 
 interface Point {
@@ -64,25 +65,20 @@ interface Particle {
 class Bullet {
   x: number;
   y: number;
-  vx: number;
-  vy: number;
   radius = 4;
   speed = 7;
   active = true;
   damage: number;
 
-  constructor(x: number, y: number, damage = 1, vx = 7, vy = 0) {
+  constructor(x: number, y: number, damage = 1) {
     this.x = x;
     this.y = y;
     this.damage = damage;
-    this.vx = vx;
-    this.vy = vy;
   }
 
   update() {
-    this.x += this.vx;
-    this.y += this.vy;
-    if (this.x > CANVAS_WIDTH || this.y < 0 || this.y > CANVAS_HEIGHT) this.active = false;
+    this.x += this.speed;
+    if (this.x > CANVAS_WIDTH) this.active = false;
   }
 
   draw(ctx: CanvasRenderingContext2D) {
@@ -695,14 +691,19 @@ const PreviewCanvas = ({ customization }: { customization: any }) => {
           ctx.stroke();
         } else if (customization.costume === 'cosmic_wanderer') {
           const r = (PLAYER_SIZE / 1.5) * alpha;
-          const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
           const hue = (now * 0.1 + i * 10) % 360;
-          grad.addColorStop(0, `hsla(${hue}, 70%, 50%, ${alpha * 0.3})`);
-          grad.addColorStop(1, 'transparent');
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-          ctx.fill();
+          
+          // Multiple offset gradients
+          for (let k = 0; k < 3; k++) {
+            const offset = k * 5;
+            const grad = ctx.createRadialGradient(p.x + offset, p.y + offset, 0, p.x + offset, p.y + offset, r);
+            grad.addColorStop(0, `hsla(${hue + k * 20}, 80%, 60%, ${alpha * (0.4 - k * 0.1)})`);
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(p.x + offset, p.y + offset, r, 0, Math.PI * 2);
+            ctx.fill();
+          }
         } else if (customization.trailPattern === 'starry') {
           const r = (PLAYER_SIZE / 2) * alpha * (0.8 + Math.sin(now * 0.01 + i) * 0.2);
           ctx.beginPath();
@@ -776,7 +777,7 @@ const PreviewCanvas = ({ customization }: { customization: any }) => {
 
 export default function Game() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [gameState, setGameState] = useState<'start_menu' | 'leaderboard' | 'intro' | 'playing' | 'gameover' | 'shop' | 'settings' | 'customization'>('start_menu');
+  const [gameState, setGameState] = useState<'start_menu' | 'leaderboard' | 'intro' | 'playing' | 'gameover' | 'shop' | 'settings' | 'customization' | 'holiday_craze'>('start_menu');
   const [isPaused, setIsPaused] = useState(false);
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
@@ -858,6 +859,7 @@ export default function Game() {
     invincible: false,
     magnet: false,
     lastShot: 0,
+    lastHit: 0,
     upgrades: {
       speed: 0,
       damage: 1,
@@ -882,7 +884,7 @@ export default function Game() {
     lastWisp: 0,
     lastPowerup: 0,
     bgX: 0,
-    nextBossScore: 5000,
+    nextBossScore: 1000,
     introTimer: 0,
     gameStartTime: 0
   });
@@ -963,7 +965,7 @@ export default function Game() {
 
   const isHighScore = (newScore: number) => {
     if (newScore <= 0) return false;
-    if (leaderboard.length < 10) return true;
+    if (leaderboard.length < 20) return true;
     return newScore > leaderboard[leaderboard.length - 1].score;
   };
 
@@ -1112,6 +1114,19 @@ export default function Game() {
       }
 
       if (gameState === 'playing') {
+        // Check for holiday unlock
+        const now = Date.now();
+        const date = new Date();
+        HOLIDAYS.forEach(h => {
+          const holidayDate = new Date(date.getFullYear(), h.date.month, h.date.day);
+          const diff = Math.abs(date.getTime() - holidayDate.getTime());
+          const sevenDays = 7 * 24 * 60 * 60 * 1000;
+          if (diff <= sevenDays) {
+            setUnlockedWorlds(prev => prev.includes(h.id as WorldType) ? prev : [...prev, h.id as WorldType]);
+            localStorage.setItem('played_holiday', h.id);
+          }
+        });
+        
         // Player Movement
         const isShooting = keysRef.current.has('Space') || keysRef.current.has('KeyK');
         const moveSpeed = (isShooting ? 5 : 8) + player.upgrades.speed;
@@ -1145,25 +1160,11 @@ export default function Game() {
         // Shooting
         const shotDelay = 100;
         if (isShooting && now - player.lastShot > shotDelay) {
-          const bulletSpeed = 7 + player.upgrades.bulletSpeed * 2;
-          const bulletDamage = player.upgrades.damage + player.upgrades.bulletPower;
-          
-          // Spread shot
-          if (player.upgrades.spread > 0) {
-            const count = 1 + player.upgrades.spread * 2;
-            for (let i = 0; i < count; i++) {
-              const angle = (i - (count - 1) / 2) * 0.2;
-              const vx = Math.cos(angle) * bulletSpeed;
-              const vy = Math.sin(angle) * bulletSpeed;
-              player.bullets.push(new Bullet(player.x + 20, player.y, bulletDamage, vx, vy));
-            }
-          } else {
-            player.bullets.push(new Bullet(player.x + 20, player.y, bulletDamage, bulletSpeed, 0));
-          }
-          
+          const bullet = new Bullet(player.x + 20, player.y, player.upgrades.damage);
+          player.bullets.push(bullet);
           player.lastShot = now;
           soundManager.shoot();
-          setScreenShake(2);
+          setScreenShake(2); // Small shake on shoot
           
           if (tutorialStep === 1) {
             setTutorialStep(2);
@@ -1218,9 +1219,10 @@ export default function Game() {
             active: true,
             phase: 1,
             lastAttack: 0,
-            attackPattern: 0
+            attackPattern: 0,
+            telegraphing: false
           };
-          entities.nextBossScore += 5000;
+          entities.nextBossScore += 1000;
           soundManager.updateMusic('boss');
         }
 
@@ -1230,17 +1232,23 @@ export default function Game() {
           b.y += Math.sin(now * 0.002) * 2;
 
           if (now - b.lastAttack > 2000) {
-            b.attackPattern = Math.floor(Math.random() * 3);
-            b.lastAttack = now;
-            
-            if (b.attackPattern === 0) {
-              // Burst
-              for (let i = 0; i < 5; i++) {
-                entities.enemies.push(new Enemy(b.x, b.y + (i - 2) * 40, 'bat', entities.difficulty));
+            if (!b.telegraphing) {
+              b.telegraphing = true;
+              b.lastAttack = now;
+            } else if (now - b.lastAttack > 500) {
+              b.telegraphing = false;
+              b.attackPattern = Math.floor(Math.random() * 3);
+              b.lastAttack = now;
+              
+              if (b.attackPattern === 0) {
+                // Burst
+                for (let i = 0; i < 5; i++) {
+                  entities.enemies.push(new Enemy(b.x, b.y + (i - 2) * 40, 'bat', entities.difficulty));
+                }
+              } else if (b.attackPattern === 1) {
+                // Hunter
+                entities.enemies.push(new Enemy(b.x, b.y, 'hunter', entities.difficulty));
               }
-            } else if (b.attackPattern === 1) {
-              // Hunter
-              entities.enemies.push(new Enemy(b.x, b.y, 'hunter', entities.difficulty));
             }
           }
         }
@@ -1347,18 +1355,34 @@ export default function Game() {
               setScreenShakeWithIntensity(10);
               setCombo(0);
             } else {
-              setLives(prev => {
-                if (prev <= 1) {
-                  triggerGameOver(score);
-                  return 0;
-                }
+              if (now - player.lastHit > 1000) {
+                player.lastHit = now;
+                player.y += 50; // Knockback
+                setScreenShakeWithIntensity(10);
                 soundManager.hit();
-                setScreenShakeWithIntensity(20);
-                return prev - 1;
-              });
-              e.active = false;
-              spawnExplosion(player.x, player.y, '#a855f7');
-              setCombo(0);
+                // Player hit particles
+                for (let i = 0; i < 5; i++) {
+                  entities.particles.push({
+                    x: player.x,
+                    y: player.y,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    life: 0.5,
+                    color: '#ef4444',
+                    size: 3
+                  });
+                }
+                setLives(prev => {
+                  if (prev <= 1) {
+                    triggerGameOver(score);
+                    return 0;
+                  }
+                  return prev - 1;
+                });
+                e.active = false;
+                spawnExplosion(player.x, player.y, '#a855f7');
+                setCombo(0);
+              }
             }
           }
         });
@@ -1393,6 +1417,19 @@ export default function Game() {
               e.health -= b.damage;
               e.lastHit = Date.now();
               b.active = false;
+              // Bullet hit effect
+              for (let i = 0; i < 5; i++) {
+                entities.particles.push({
+                  x: b.x,
+                  y: b.y,
+                  vx: (Math.random() - 0.5) * 5,
+                  vy: (Math.random() - 0.5) * 5,
+                  life: 0.3,
+                  color: '#fbbf24',
+                  size: 2
+                });
+              }
+              
               if (e.health <= 0) {
                 e.active = false;
                 const points = Math.floor(100 * (1 + combo * 0.1));
@@ -1585,13 +1622,22 @@ export default function Game() {
       // Parallax Clouds/Stars Detail
       ctx.save();
       ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < 30; i++) {
         const cloudX = (entities.bgX * 0.2 + i * 200) % (CANVAS_WIDTH + 200) - 100;
         const cloudY = (i * 53) % (CANVAS_HEIGHT / 2);
         const cloudW = 60 + (i % 5) * 20;
         const cloudH = 20 + (i % 3) * 10;
         ctx.beginPath();
         ctx.ellipse(cloudX, cloudY, cloudW, cloudH, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Add more distant scenery
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+      for (let i = 0; i < 50; i++) {
+        const x = (i * 137 + entities.bgX * 0.05) % CANVAS_WIDTH;
+        const y = (i * 71) % CANVAS_HEIGHT;
+        ctx.beginPath();
+        ctx.arc(x, y, 2 + (i % 3), 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.restore();
@@ -1807,50 +1853,18 @@ export default function Game() {
         for (let i = 0; i < 4; i++) {
           const x = (entities.bgX * 1.2 + i * 350) % (CANVAS_WIDTH + 350);
           const drawX = x - 175;
-          ctx.fillRect(drawX, CANVAS_HEIGHT - 100, 15, 100);
-          ctx.fillStyle = '#b45309';
-          ctx.beginPath();
-          ctx.arc(drawX + 7, CANVAS_HEIGHT - 100, 30, 0, Math.PI * 2);
-          ctx.fill();
+          // Trunk
+          ctx.fillStyle = '#451a03';
+          ctx.fillRect(drawX, CANVAS_HEIGHT - 100, 20, 100);
           
-          // Luke's Diner Mug Sign
-          const signX = drawX - 25;
-          const signY = CANVAS_HEIGHT - 165;
-          
-          // Mug Body
-          ctx.fillStyle = '#facc15'; // Yellow
-          ctx.beginPath();
-          ctx.roundRect(signX, signY, 60, 45, 5);
-          ctx.fill();
-          ctx.strokeStyle = '#451a03';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          
-          // Mug Handle
-          ctx.beginPath();
-          ctx.arc(signX + 60, signY + 22, 12, -Math.PI/2, Math.PI/2);
-          ctx.lineWidth = 4;
-          ctx.stroke();
-          
-          // Steam
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-          ctx.lineWidth = 2;
-          for(let s=0; s<3; s++) {
-            const sx = signX + 15 + s * 15;
-            const sy = signY - 5 - (Math.sin(now * 0.01 + s) * 5);
-            ctx.beginPath();
-            ctx.moveTo(sx, signY - 2);
-            ctx.quadraticCurveTo(sx + 5, signY - 10, sx, signY - 15);
-            ctx.stroke();
+          // Pixel Leaves
+          ctx.fillStyle = '#166534';
+          for (let row = 0; row < 3; row++) {
+            for (let col = 0; col < 3; col++) {
+              ctx.fillRect(drawX - 15 + col * 20, CANVAS_HEIGHT - 150 - row * 20, 15, 15);
+            }
           }
           
-          ctx.fillStyle = '#451a03'; // Brown
-          ctx.font = 'italic 9px cursive';
-          ctx.textAlign = 'center';
-          ctx.fillText("Luke's", signX + 30, signY + 18);
-          ctx.fillText("Diner", signX + 30, signY + 32);
-          
-          ctx.fillStyle = '#451a03';
         }
       } else if (selectedWorld === 'easter') {
         // Easter Eggs and Bunnies
@@ -2087,6 +2101,11 @@ export default function Game() {
           ctx.globalAlpha = 1 - entities.introTimer / 60;
         }
 
+        // Hit Flash
+        if (now - player.lastHit < 200) {
+          ctx.globalAlpha = Math.sin(now * 0.05) > 0 ? 0.5 : 1;
+        }
+        
         ctx.translate(drawX, drawY);
 
         if (customization.costume === 'ghostly_dance') {
@@ -2359,18 +2378,16 @@ export default function Game() {
             </div>
             
             <div className="space-y-3">
-              <div className="bg-slate-800/50 p-3 rounded-2xl border border-slate-700/50">
-                <h3 className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-2">Holiday Crazes</h3>
-                <div className="space-y-1">
-                  {HOLIDAYS.map(h => (
-                    <div key={h.id} className="flex items-center justify-between text-[9px]">
-                      <span className="text-slate-300 font-bold flex items-center gap-2">
-                        {h.icon} {h.name}
-                      </span>
-                      <span className="text-slate-500 italic">{h.desc}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="grid grid-cols-1 gap-3">
+                <button 
+                  onClick={() => {
+                    setGameState('holiday_craze');
+                    soundManager.nav();
+                  }}
+                  className="px-3 py-3 bg-slate-800 hover:bg-slate-700 rounded-2xl font-bold text-sm transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 border border-slate-700"
+                >
+                  <Calendar size={18} className="text-purple-400" /> HOLIDAY CRAZE
+                </button>
               </div>
 
               <div className="grid grid-cols-1 gap-3">
@@ -2918,6 +2935,33 @@ export default function Game() {
             >
               BACK TO MENU
             </button>
+          </div>
+        </motion.div>
+      )}
+
+      {gameState === 'holiday_craze' && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-xl p-4"
+        >
+          <div className="max-w-md w-full bg-slate-900/50 p-6 rounded-3xl border border-slate-800 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-black tracking-tight">HOLIDAY CRAZE</h2>
+              <button onClick={() => { setGameState('start_menu'); soundManager.nav(); }} className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
+                <RotateCcw size={20} />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {HOLIDAYS.map(h => (
+                <div key={h.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                  <span className="text-slate-300 font-bold flex items-center gap-2">
+                    {h.icon} {h.name}
+                  </span>
+                  <span className="text-slate-500 italic text-[10px]">{h.desc}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </motion.div>
       )}
