@@ -1849,22 +1849,80 @@ export default function Game() {
           ctx.fill();
         }
       } else if (selectedWorld === 'gg') {
-        ctx.fillStyle = '#451a03';
-        for (let i = 0; i < 4; i++) {
-          const x = (entities.bgX * 1.2 + i * 350) % (CANVAS_WIDTH + 350);
-          const drawX = x - 175;
-          // Trunk
-          ctx.fillStyle = '#451a03';
-          ctx.fillRect(drawX, CANVAS_HEIGHT - 100, 20, 100);
-          
-          // Pixel Leaves
-          ctx.fillStyle = '#166534';
-          for (let row = 0; row < 3; row++) {
-            for (let col = 0; col < 3; col++) {
-              ctx.fillRect(drawX - 15 + col * 20, CANVAS_HEIGHT - 150 - row * 20, 15, 15);
-            }
+        for (let i = 0; i < 6; i++) {
+          const x = (entities.bgX * 1.2 + i * 300) % (CANVAS_WIDTH + 300);
+          const drawX = x - 150;
+
+          // Street Lamp
+          ctx.fillStyle = '#334155';
+          ctx.fillRect(drawX, CANVAS_HEIGHT - 120, 5, 120);
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          ctx.arc(drawX + 2.5, CANVAS_HEIGHT - 120, 15, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Autumn Tree
+          ctx.fillStyle = '#78350f';
+          ctx.fillRect(drawX + 50, CANVAS_HEIGHT - 60, 10, 60);
+          ctx.fillStyle = '#f59e0b';
+          ctx.beginPath();
+          ctx.arc(drawX + 55, CANVAS_HEIGHT - 80, 25, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Sign 1: Luke's Diner
+          if (i % 2 === 0) {
+            const signX = drawX + 100;
+            const signY = CANVAS_HEIGHT - 200;
+            // Mug
+            ctx.fillStyle = '#facc15';
+            ctx.beginPath();
+            ctx.moveTo(signX, signY);
+            ctx.lineTo(signX + 50, signY);
+            ctx.lineTo(signX + 40, signY + 40);
+            ctx.lineTo(signX + 10, signY + 40);
+            ctx.closePath();
+            ctx.fill();
+            // Handle
+            ctx.strokeStyle = '#facc15';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.arc(signX + 50, signY + 20, 10, -Math.PI/2, Math.PI/2);
+            ctx.stroke();
+            // Steam
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(signX + 20, signY - 5);
+            ctx.quadraticCurveTo(signX + 25, signY - 15, signX + 20, signY - 25);
+            ctx.stroke();
+            // Text
+            ctx.fillStyle = '#451a03';
+            ctx.font = 'bold 10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("Luke's", signX + 25, signY + 15);
+            ctx.fillText("Diner", signX + 25, signY + 28);
+            ctx.textAlign = 'left';
           }
-          
+
+          // Sign 2: Iz's Ideas
+          if (i % 2 !== 0) {
+            const signX = drawX + 100;
+            const signY = CANVAS_HEIGHT - 200;
+            // Star
+            ctx.fillStyle = '#facc15';
+            ctx.beginPath();
+            for (let j = 0; j < 5; j++) {
+              ctx.lineTo(signX + Math.cos((j * 4 * Math.PI) / 5) * 30, signY + Math.sin((j * 4 * Math.PI) / 5) * 30);
+            }
+            ctx.closePath();
+            ctx.fill();
+            // Text
+            ctx.fillStyle = '#451a03';
+            ctx.font = 'italic 12px cursive';
+            ctx.textAlign = 'center';
+            ctx.fillText("Iz's Ideas", signX, signY + 5);
+            ctx.textAlign = 'left';
+          }
         }
       } else if (selectedWorld === 'easter') {
         // Easter Eggs and Bunnies
