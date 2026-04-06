@@ -458,13 +458,13 @@ class Enemy {
 class PowerUp {
   x: number;
   y: number;
-  type: 'upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin' | 'spread' | 'rapid' | 'power' | 'slow_time';
+  type: 'upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin' | 'spread' | 'rapid' | 'power' | 'slow_time' | 'energy_drink';
   upgradeType?: 'speed' | 'damage' | 'maxLives';
   radius = 15;
   speed = 3;
   active = true;
 
-  constructor(x: number, y: number, type: 'upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin' | 'spread' | 'rapid' | 'power' | 'slow_time', upgradeType?: 'speed' | 'damage' | 'maxLives') {
+  constructor(x: number, y: number, type: 'upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin' | 'spread' | 'rapid' | 'power' | 'slow_time' | 'energy_drink', upgradeType?: 'speed' | 'damage' | 'maxLives') {
     this.x = x;
     this.y = y;
     this.type = type;
@@ -477,6 +477,36 @@ class PowerUp {
   }
 
   draw(ctx: CanvasRenderingContext2D) {
+    if (this.type === 'energy_drink') {
+      // Draw Red Bull can
+      ctx.fillStyle = '#cbd5e1'; // Silver
+      ctx.fillRect(this.x - 8, this.y - 12, 16, 24);
+      ctx.fillStyle = '#3b82f6'; // Blue
+      ctx.fillRect(this.x - 8, this.y - 6, 16, 12);
+      ctx.fillStyle = '#ef4444'; // Red logo
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      // Can top
+      ctx.fillStyle = '#94a3b8';
+      ctx.beginPath();
+      ctx.ellipse(this.x, this.y - 12, 8, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Can bottom
+      ctx.beginPath();
+      ctx.ellipse(this.x, this.y + 12, 8, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Glow
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#3b82f6';
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(this.x - 8, this.y - 12, 16, 24);
+      ctx.shadowBlur = 0;
+      return;
+    }
+
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.strokeStyle = '#fff';
@@ -496,7 +526,7 @@ class PowerUp {
       slow_time: '#60a5fa'
     };
 
-    ctx.fillStyle = colors[this.type];
+    ctx.fillStyle = colors[this.type as keyof typeof colors];
     ctx.font = 'bold 12px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -812,7 +842,7 @@ export default function Game() {
     ghostColor: '#a855f7', 
     trailColor: '#d8b4fe',
     costume: 'none' as 'none' | 'ghostly_dance' | 'vibe_coding' | 'cosmic_wanderer' | 'gameboy',
-    trailPattern: 'standard' as 'standard' | 'starry' | 'glitch' | 'sparkle' | 'ripple'
+    trailPattern: 'standard' as 'standard' | 'starry' | 'glitch' | 'sparkle' | 'ripple' | 'fire'
   });
   const [unlockedWorlds, setUnlockedWorlds] = useState<WorldType[]>(['graveyard', 'gg']);
   const [selectedWorld, setSelectedWorld] = useState<WorldType>('graveyard');
@@ -991,6 +1021,14 @@ export default function Game() {
     localStorage.setItem('ghost_shooter_leaderboard_v2', JSON.stringify(newLeaderboard));
   };
 
+  const resetHighScores = () => {
+    const newLeaderboard = leaderboard.slice(0, 3);
+    setLeaderboard(newLeaderboard);
+    setHighScore(newLeaderboard[0].score);
+    localStorage.setItem('ghost_shooter_leaderboard_v2', JSON.stringify(newLeaderboard));
+    soundManager.click();
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (gameState === 'start_menu') {
@@ -1137,7 +1175,10 @@ export default function Game() {
         
         // Player Movement
         const isShooting = keysRef.current.has('Space') || keysRef.current.has('KeyK');
-        const moveSpeed = (isShooting ? 5 : 8) + player.upgrades.speed;
+        let moveSpeed = (isShooting ? 5 : 8) + player.upgrades.speed;
+        if (player.powerUpType === 'energy_drink') {
+          moveSpeed *= 1.5; // 50% speed boost
+        }
         
         // Inverted Controls
         const upKey = settings.invertControls ? (keysRef.current.has('ArrowDown') || keysRef.current.has('KeyS')) : (keysRef.current.has('ArrowUp') || keysRef.current.has('KeyW'));
@@ -1311,7 +1352,7 @@ export default function Game() {
         const powerupInterval = 8000 / frequencyMultiplier;
 
         if (now - entities.lastPowerup > powerupInterval) {
-          const types: ('upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin' | 'slow_time')[] = ['upgrade', 'shield', 'life', 'invincible', 'magnet', 'coin', 'coin', 'slow_time'];
+          const types: ('upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin' | 'slow_time' | 'energy_drink')[] = ['upgrade', 'shield', 'life', 'invincible', 'magnet', 'coin', 'coin', 'slow_time', 'energy_drink'];
           const type = types[Math.floor(Math.random() * types.length)];
           let upgradeType: 'speed' | 'damage' | 'maxLives' | undefined;
           if (type === 'upgrade') {
@@ -1622,6 +1663,10 @@ export default function Game() {
               player.slowTimeTimer = 300; // 5 seconds at 60fps
               spawnFloatingText(p.x, p.y, "SLOW TIME!", "#60a5fa");
               soundManager.slowTime();
+            } else if (p.type === 'energy_drink') {
+              player.powerUpType = 'energy_drink';
+              player.powerUpTimer = 500;
+              spawnFloatingText(p.x, p.y, "ENERGY DRINK!", "#3b82f6");
             } else {
               player.powerUpType = p.type;
               player.powerUpTimer = 500; // frames
@@ -1651,8 +1696,10 @@ export default function Game() {
       }
       
       // Background scroll
-      entities.bgX -= 1;
-      if (entities.bgX <= -CANVAS_WIDTH) entities.bgX = 0;
+      if (!entities.boss) {
+        entities.bgX -= 1;
+        if (entities.bgX <= -CANVAS_WIDTH) entities.bgX = 0;
+      }
       
       // Screen Shake
       if (screenShake > 0) setScreenShake(s => s * 0.9);
@@ -2290,6 +2337,23 @@ export default function Game() {
                 ctx.fillStyle = '#fff';
                 ctx.fillRect(p.x + Math.sin(i) * 5 - 1, p.y + Math.cos(i) * 5 - 1, 2, 2);
               }
+            } else if (customization.trailPattern === 'fire') {
+              const fireSize = (PLAYER_SIZE / 1.5) * alpha;
+              const flameOffset = Math.sin(now * 0.05 + i) * 5 * alpha;
+              
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y - fireSize * 1.5 + flameOffset); // Top tip
+              ctx.quadraticCurveTo(p.x + fireSize, p.y, p.x + fireSize/2, p.y + fireSize); // Right curve
+              ctx.lineTo(p.x - fireSize/2, p.y + fireSize); // Bottom flat
+              ctx.quadraticCurveTo(p.x - fireSize, p.y, p.x, p.y - fireSize * 1.5 + flameOffset); // Left curve
+              
+              const grad = ctx.createRadialGradient(p.x, p.y + fireSize/2, 0, p.x, p.y + fireSize/2, fireSize);
+              grad.addColorStop(0, `rgba(255, 255, 0, ${alpha})`); // Yellow center
+              grad.addColorStop(0.5, `rgba(255, 100, 0, ${alpha * 0.8})`); // Orange middle
+              grad.addColorStop(1, `rgba(255, 0, 0, 0)`); // Red edge
+              ctx.fillStyle = grad;
+              ctx.fill();
+              return;
             } else {
               ctx.arc(p.x, p.y, (PLAYER_SIZE / 2) * alpha, 0, Math.PI * 2);
             }
@@ -3058,7 +3122,8 @@ export default function Game() {
                     { id: 'starry', name: 'Starry' },
                     { id: 'glitch', name: 'Glitch' },
                     { id: 'sparkle', name: 'Sparkle' },
-                    { id: 'ripple', name: 'Ripple' }
+                    { id: 'ripple', name: 'Ripple' },
+                    { id: 'fire', name: 'Fire' }
                   ].map(pattern => (
                     <button 
                       key={pattern.id}
@@ -3076,7 +3141,7 @@ export default function Game() {
                       setCustomization(c => ({ ...c, trailPattern: 'standard' }));
                       soundManager.click();
                     }}
-                    className="py-2 rounded-xl border-2 border-slate-800 bg-slate-800/30 hover:border-slate-700 text-[10px] font-black text-slate-400 uppercase tracking-tighter"
+                    className="py-2 rounded-xl border-2 border-slate-800 bg-slate-800/30 hover:border-slate-700 text-[10px] font-black text-slate-400 uppercase tracking-tighter col-span-3"
                   >
                     RESET
                   </button>
@@ -3194,15 +3259,23 @@ export default function Game() {
               )}
             </div>
 
-            <button 
-              onClick={() => {
-                setGameState('start_menu');
-                soundManager.nav();
-              }}
-              className="w-full py-3 bg-slate-800 hover:bg-slate-700 rounded-2xl font-bold transition-all text-sm"
-            >
-              BACK TO MENU
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={resetHighScores}
+                className="flex-1 py-3 bg-red-900/50 hover:bg-red-800/50 text-red-200 rounded-2xl font-bold transition-all text-sm border border-red-800/50"
+              >
+                RESET SCORES
+              </button>
+              <button 
+                onClick={() => {
+                  setGameState('start_menu');
+                  soundManager.nav();
+                }}
+                className="flex-[2] py-3 bg-slate-800 hover:bg-slate-700 rounded-2xl font-bold transition-all text-sm"
+              >
+                BACK TO MENU
+              </button>
+            </div>
           </div>
         </motion.div>
       )}
