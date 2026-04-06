@@ -1,0 +1,86 @@
+190:  update(playerY: number, bullets: Bullet[]) {
+196:      // Pursue player
+197:      const dy = playerY - this.y;
+849:  const playerRef = useRef({
+963:    playerRef.current.upgrades = upgrades;
+1052:    playerRef.current = {
+1107:      const player = playerRef.current;
+1132:        const moveSpeed = (isShooting ? 5 : 8) + player.upgrades.speed;
+1139:          player.y -= moveSpeed;
+1146:          player.y += moveSpeed;
+1153:        // Clamp player
+1154:        player.y = Math.max(PLAYER_SIZE, Math.min(CANVAS_HEIGHT - PLAYER_SIZE, player.y));
+1157:        player.trail.unshift({ x: player.x, y: player.y });
+1158:        if (player.trail.length > 20) player.trail.pop();
+1162:        if (isShooting && now - player.lastShot > shotDelay) {
+1163:          const bullet = new Bullet(player.x + 20, player.y, player.upgrades.damage);
+1164:          player.bullets.push(bullet);
+1165:          player.lastShot = now;
+1177:              x: player.x + 25,
+1178:              y: player.y,
+1193:          spawnFloatingText(player.x, player.y - 20, "+1 COIN & EXTRA LIFE!", "#fbbf24");
+1198:        player.bullets.forEach(b => b.update());
+1199:        player.bullets = player.bullets.filter(b => b.active);
+1286:          e.update(player.y, player.bullets);
+1304:          if (player.magnet) {
+1305:            const dx = player.x - w.x;
+1306:            const dy = player.y - w.y;
+1335:          const dx = player.x - e.x;
+1336:          const dy = player.y - e.y;
+1339:            if (player.invincible) {
+1349:            } else if (player.shield) {
+1350:              player.shield = false;
+1351:              player.powerUpType = null;
+1358:              if (now - player.lastHit > 1000) {
+1359:                player.lastHit = now;
+1360:                player.y += 50; // Knockback
+1366:                    x: player.x,
+1367:                    y: player.y,
+1383:                spawnExplosion(player.x, player.y, '#a855f7');
+1393:          const dx = player.x - b.x;
+1394:          const dy = player.y - b.y;
+1396:          if (dist < 80 && !player.invincible) {
+1411:        player.bullets.forEach(b => {
+1499:          const dx = player.x - w.x;
+1500:          const dy = player.y - w.y;
+1526:          const dx = player.x - p.x;
+1527:          const dy = player.y - p.y;
+1538:              player.upgrades.spread += 1;
+1539:              player.form = 'wide';
+1542:              player.upgrades.bulletSpeed += 1;
+1543:              player.form = 'fast';
+1546:              player.upgrades.bulletPower += 1;
+1547:              player.form = 'powerful';
+1551:                player.upgrades.speed += 1;
+1554:                player.upgrades.damage += 1;
+1559:                player.upgrades.maxLives += 1;
+1563:              player.powerUpType = p.type;
+1564:              player.powerUpTimer = 500; // frames
+1565:              player.shield = p.type === 'shield';
+1566:              player.invincible = p.type === 'invincible';
+1567:              player.magnet = p.type === 'magnet';
+1575:        if (player.powerUpTimer > 0) {
+1576:          player.powerUpTimer--;
+1577:          if (player.powerUpTimer === 0) {
+1578:            player.powerUpType = null;
+1579:            player.shield = false;
+1580:            player.invincible = false;
+1581:            player.magnet = false;
+2021:        const manY = player.y;
+2075:        player.trail.forEach((p, i) => {
+2076:          const alpha = 1 - i / player.trail.length;
+2155:        const drawX = player.x;
+2156:        const drawY = player.y + bob;
+2163:        if (now - player.lastHit < 200) {
+2192:        if (player.form === 'wide') {
+2194:        } else if (player.form === 'fast') {
+2196:        } else if (player.form === 'powerful') {
+2274:      if (player.shield || player.invincible) {
+2275:        ctx.strokeStyle = player.invincible ? '#fff' : '#3b82f6';
+2277:        if (player.invincible) {
+2288:      if (player.magnet) {
+2299:      player.bullets.forEach(b => b.draw(ctx));
+3147:              {playerRef.current.upgrades.speed > 0 && (
+3149:                  SPEED +{playerRef.current.upgrades.speed}
+3152:              {playerRef.current.upgrades.damage > 1 && (
+3154:                  DAMAGE +{playerRef.current.upgrades.damage - 1}

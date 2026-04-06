@@ -58,6 +58,7 @@ interface Particle {
   life: number;
   color: string;
   size: number;
+  type?: 'fiery' | 'wispy' | 'normal';
 }
 
 // --- Game Classes ---
@@ -187,22 +188,23 @@ class Enemy {
     this.maxHealth = this.health;
   }
 
-  update(playerY: number, bullets: Bullet[]) {
-    this.x -= this.speed;
+  update(playerY: number, bullets: Bullet[], slowTime: boolean) {
+    const timeMultiplier = slowTime ? 0.3 : 1;
+    this.x -= this.speed * timeMultiplier;
     
     if (this.type === 'bat') {
-      this.y += Math.sin(Date.now() * 0.01) * this.sinModifier;
+      this.y += Math.sin(Date.now() * 0.01) * this.sinModifier * timeMultiplier;
     } else if (this.type === 'hunter') {
       // Pursue player
       const dy = playerY - this.y;
-      this.y += Math.sign(dy) * 1.5;
+      this.y += Math.sign(dy) * 1.5 * timeMultiplier;
     } else if (this.type === 'dodger') {
       // Dodge bullets
       bullets.forEach(b => {
         const dx = b.x - this.x;
         const dy = b.y - this.y;
         if (dx > -100 && dx < 0 && Math.abs(dy) < 50) {
-          this.y += Math.sign(dy) * -3;
+          this.y += Math.sign(dy) * -3 * timeMultiplier;
         }
       });
     }
@@ -231,7 +233,18 @@ class Enemy {
 
     if (world === 'gg') {
       if (this.type === 'bat') {
-        // Chinese Carryout Box
+        // Detailed Chinese Carryout Box
+        // Noodles hanging out
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(15, 5);
+        ctx.quadraticCurveTo(10, -5, 5, 10);
+        ctx.moveTo(25, 5);
+        ctx.quadraticCurveTo(30, -5, 35, 10);
+        ctx.stroke();
+
+        // Box body
         ctx.fillStyle = '#f3f4f6';
         ctx.beginPath();
         ctx.moveTo(5, 5);
@@ -240,18 +253,44 @@ class Enemy {
         ctx.lineTo(10, 35);
         ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        // Handle
+        
+        // Flaps
+        ctx.fillStyle = '#e5e7eb';
         ctx.beginPath();
-        ctx.moveTo(10, 5);
-        ctx.quadraticCurveTo(20, -10, 30, 5);
+        ctx.moveTo(5, 5);
+        ctx.lineTo(20, -5);
+        ctx.lineTo(35, 5);
+        ctx.closePath();
+        ctx.fill();
+
+        // Box outlines
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1;
         ctx.stroke();
-        // Logo
+        
+        // Fold lines
+        ctx.beginPath();
+        ctx.moveTo(10, 35);
+        ctx.lineTo(15, 5);
+        ctx.moveTo(30, 35);
+        ctx.lineTo(25, 5);
+        ctx.stroke();
+
+        // Handle
+        ctx.strokeStyle = '#9ca3af';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(8, 10);
+        ctx.quadraticCurveTo(20, -15, 32, 10);
+        ctx.stroke();
+        
+        // Logo (Pagoda instead of text)
         ctx.fillStyle = '#ef4444';
-        ctx.font = 'bold 10px sans-serif';
-        ctx.fillText('福', 15, 25);
+        ctx.fillRect(17, 15, 6, 2);
+        ctx.fillRect(16, 18, 8, 2);
+        ctx.fillRect(15, 21, 10, 2);
+        ctx.fillRect(18, 23, 4, 6);
+        ctx.fillRect(14, 29, 12, 2);
       } else if (this.type === 'demon') {
         // Mug of Coffee
         const hover = Math.sin(time) * 3;
@@ -306,136 +345,97 @@ class Enemy {
     }
     
     if (this.type === 'bat') {
-      // Wings
+      // Pixel Bat
       ctx.fillStyle = '#1e293b';
-      ctx.beginPath();
-      // Left Wing
-      ctx.moveTo(10, 20);
-      ctx.lineTo(-5, 10 + flap);
-      ctx.lineTo(5, 25);
-      // Right Wing
-      ctx.moveTo(30, 20);
-      ctx.lineTo(45, 10 + flap);
-      ctx.lineTo(35, 25);
-      ctx.fill();
-      
-      // Body Shading
-      ctx.fillStyle = '#0f172a';
-      ctx.beginPath();
-      ctx.ellipse(20, 20, 8, 6, 0, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Head
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(15, 10, 10, 8);
+      // Body
+      ctx.fillRect(12, 12, 16, 16);
       // Ears
-      ctx.fillRect(15, 5, 3, 5);
-      ctx.fillRect(22, 5, 3, 5);
+      ctx.fillRect(12, 8, 4, 4);
+      ctx.fillRect(24, 8, 4, 4);
+      // Wings
+      ctx.fillRect(4, 16 + flap, 8, 8);
+      ctx.fillRect(0, 12 + flap, 4, 4);
+      ctx.fillRect(28, 16 + flap, 8, 8);
+      ctx.fillRect(36, 12 + flap, 4, 4);
       // Eyes
-      ctx.fillStyle = '#f87171'; // Brighter red
+      ctx.fillStyle = '#ef4444';
       ctx.shadowBlur = 5;
       ctx.shadowColor = '#ef4444';
-      ctx.fillRect(17, 12, 2, 2);
-      ctx.fillRect(21, 12, 2, 2);
+      ctx.fillRect(16, 16, 2, 2);
+      ctx.fillRect(22, 16, 2, 2);
       ctx.shadowBlur = 0;
     } else if (this.type === 'demon') {
+      // Pixel Demon
       const hover = Math.sin(time) * 3;
+      ctx.fillStyle = '#991b1b';
+      // Body
+      ctx.fillRect(8, 10 + hover, 24, 24);
       // Horns
       ctx.fillStyle = '#450a0a';
-      ctx.beginPath();
-      ctx.moveTo(5, 10 + hover);
-      ctx.lineTo(0, -5 + hover);
-      ctx.lineTo(11, 10 + hover);
-      ctx.moveTo(29, 10 + hover);
-      ctx.lineTo(40, -5 + hover);
-      ctx.lineTo(35, 10 + hover);
-      ctx.fill();
-      
-      // Face
-      ctx.fillStyle = '#7f1d1d';
-      ctx.beginPath();
-      ctx.roundRect(5, 10 + hover, 30, 30, 8);
-      ctx.fill();
-      
+      ctx.fillRect(8, 6 + hover, 4, 4);
+      ctx.fillRect(4, 2 + hover, 4, 4);
+      ctx.fillRect(28, 6 + hover, 4, 4);
+      ctx.fillRect(32, 2 + hover, 4, 4);
       // Eyes
       ctx.fillStyle = '#facc15';
       ctx.shadowBlur = 10;
       ctx.shadowColor = '#facc15';
-      ctx.beginPath();
-      ctx.arc(12, 22 + hover, 4, 0, Math.PI * 2);
-      ctx.arc(28, 22 + hover, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      
-      // Mouth
-      ctx.strokeStyle = '#450a0a';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(12, 32 + hover);
-      ctx.lineTo(28, 32 + hover);
-      ctx.stroke();
-      
-      ctx.fillStyle = '#991b1b';
-      ctx.fillRect(5, 8 + hover, 30, 30);
-      // Shading
-      ctx.fillStyle = '#7f1d1d';
-      ctx.fillRect(5, 30 + hover, 30, 8);
-      ctx.fillRect(28, 8 + hover, 7, 30);
-      // Eyes (Glow)
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = '#facc15';
-      ctx.fillStyle = '#fef08a';
-      ctx.fillRect(10, 18 + hover, 6, 6);
-      ctx.fillRect(24, 18 + hover, 6, 6);
+      ctx.fillRect(12, 16 + hover, 4, 4);
+      ctx.fillRect(24, 16 + hover, 4, 4);
       ctx.shadowBlur = 0;
       // Mouth
       ctx.fillStyle = '#450a0a';
-      ctx.fillRect(12, 30 + hover, 16, 4);
+      ctx.fillRect(16, 26 + hover, 8, 4);
     } else if (this.type === 'skeleton') {
-      // Skeleton
-      // Skull
+      // Pixel Skeleton
       ctx.fillStyle = '#f3f4f6';
-      ctx.fillRect(8, 5, 24, 22);
+      // Skull
+      ctx.fillRect(10, 4, 20, 16);
       // Jaw
-      ctx.fillRect(12, 27, 16, 8);
-      // Shading
-      ctx.fillStyle = '#d1d5db';
-      ctx.fillRect(24, 5, 8, 22);
-      ctx.fillRect(8, 22, 24, 5);
+      ctx.fillRect(14, 20, 12, 6);
       // Eyes
       ctx.fillStyle = '#111827';
-      ctx.fillRect(12, 12, 6, 6);
-      ctx.fillRect(22, 12, 6, 6);
+      ctx.fillRect(14, 10, 4, 4);
+      ctx.fillRect(22, 10, 4, 4);
       // Nose
-      ctx.fillRect(18, 20, 4, 3);
+      ctx.fillRect(18, 16, 4, 2);
       // Teeth
       ctx.fillStyle = '#9ca3af';
-      ctx.fillRect(14, 28, 2, 4);
-      ctx.fillRect(19, 28, 2, 4);
-      ctx.fillRect(24, 28, 2, 4);
+      ctx.fillRect(16, 22, 2, 4);
+      ctx.fillRect(22, 22, 2, 4);
     } else if (this.type === 'hunter') {
-      // Hunter (Cloaked figure)
+      // Pixel Hunter
       ctx.fillStyle = '#1e1b4b';
-      ctx.beginPath();
-      ctx.moveTo(20, 0);
-      ctx.lineTo(40, 40);
-      ctx.lineTo(0, 40);
-      ctx.fill();
-      ctx.fillStyle = '#4c1d95';
-      ctx.fillRect(15, 10, 10, 10); // hood
-      ctx.fillStyle = '#facc15';
-      ctx.fillRect(17, 14, 2, 2); // eye L
-      ctx.fillRect(21, 14, 2, 2); // eye R
+      // Cloak
+      ctx.fillRect(10, 10, 20, 24);
+      ctx.fillRect(6, 14, 4, 16);
+      ctx.fillRect(30, 14, 4, 16);
+      ctx.fillRect(8, 34, 24, 4);
+      // Hood opening
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(14, 14, 12, 10);
+      // Eyes
+      ctx.fillStyle = '#22c55e';
+      ctx.shadowBlur = 5;
+      ctx.shadowColor = '#22c55e';
+      ctx.fillRect(16, 18, 2, 2);
+      ctx.fillRect(22, 18, 2, 2);
+      ctx.shadowBlur = 0;
     } else if (this.type === 'dodger') {
-      // Dodger (Agile wisp-like)
+      // Pixel Dodger
       ctx.fillStyle = '#06b6d4';
-      ctx.beginPath();
-      ctx.arc(20, 20, 15, 0, Math.PI * 2);
-      ctx.fill();
+      // Body
+      ctx.fillRect(12, 12, 16, 16);
+      ctx.fillRect(16, 8, 8, 4);
+      ctx.fillRect(16, 28, 8, 4);
+      ctx.fillRect(8, 16, 4, 8);
+      ctx.fillRect(28, 16, 4, 8);
+      // Core
       ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(20, 20, 5, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#06b6d4';
+      ctx.fillRect(16, 16, 8, 8);
+      ctx.shadowBlur = 0;
     }
     
     ctx.restore();
@@ -458,13 +458,13 @@ class Enemy {
 class PowerUp {
   x: number;
   y: number;
-  type: 'upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin' | 'spread' | 'rapid' | 'power';
+  type: 'upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin' | 'spread' | 'rapid' | 'power' | 'slow_time';
   upgradeType?: 'speed' | 'damage' | 'maxLives';
   radius = 15;
   speed = 3;
   active = true;
 
-  constructor(x: number, y: number, type: 'upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin' | 'spread' | 'rapid' | 'power', upgradeType?: 'speed' | 'damage' | 'maxLives') {
+  constructor(x: number, y: number, type: 'upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin' | 'spread' | 'rapid' | 'power' | 'slow_time', upgradeType?: 'speed' | 'damage' | 'maxLives') {
     this.x = x;
     this.y = y;
     this.type = type;
@@ -492,7 +492,8 @@ class PowerUp {
       coin: '#facc15',
       spread: '#22c55e',
       rapid: '#06b6d4',
-      power: '#f97316'
+      power: '#f97316',
+      slow_time: '#60a5fa'
     };
 
     ctx.fillStyle = colors[this.type];
@@ -510,6 +511,8 @@ class PowerUp {
       icon = '⏩';
     } else if (this.type === 'power') {
       icon = '💥';
+    } else if (this.type === 'slow_time') {
+      icon = '⏱️';
     } else {
       icon = this.type === 'invincible' ? '⭐' : this.type === 'magnet' ? '🧲' : this.type[0].toUpperCase();
     }
@@ -628,6 +631,10 @@ class SoundManager {
   powerup() {
     this.playTone(440, 'sine', 0.1, 0.2, 880);
     setTimeout(() => this.playTone(660, 'sine', 0.1, 0.2, 1320), 50);
+  }
+
+  slowTime() {
+    this.playTone(880, 'sine', 0.5, 0.2, 220); // Pitch down effect
   }
 
   hit() {
@@ -804,7 +811,7 @@ export default function Game() {
   const [customization, setCustomization] = useState({ 
     ghostColor: '#a855f7', 
     trailColor: '#d8b4fe',
-    costume: 'none' as 'none' | 'ghostly_dance' | 'vibe_coding' | 'cosmic_wanderer',
+    costume: 'none' as 'none' | 'ghostly_dance' | 'vibe_coding' | 'cosmic_wanderer' | 'gameboy',
     trailPattern: 'standard' as 'standard' | 'starry' | 'glitch' | 'sparkle' | 'ripple'
   });
   const [unlockedWorlds, setUnlockedWorlds] = useState<WorldType[]>(['graveyard', 'gg']);
@@ -814,7 +821,7 @@ export default function Game() {
   const [hasCompletedTutorial, setHasCompletedTutorial] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [purchasedWorld, setPurchasedWorld] = useState<{ name: string, icon: string } | null>(null);
-  const [unlockedCostumes, setUnlockedCostumes] = useState<string[]>(['none', 'ghostly_dance']);
+  const [unlockedCostumes, setUnlockedCostumes] = useState<string[]>(['none', 'ghostly_dance', 'gameboy']);
 
   useEffect(() => {
     const now = new Date();
@@ -855,6 +862,7 @@ export default function Game() {
     bullets: [] as Bullet[],
     powerUpTimer: 0,
     powerUpType: null as 'shield' | 'invincible' | 'magnet' | null,
+    slowTimeTimer: 0,
     shield: false,
     invincible: false,
     magnet: false,
@@ -1204,7 +1212,39 @@ export default function Game() {
         // Respawn Logic
         entities.respawnQueue.forEach((r, index) => {
           if (now >= r.time) {
-            entities.enemies.push(new Enemy(CANVAS_WIDTH + 50, Math.random() * (CANVAS_HEIGHT - 100) + 50, r.type, entities.difficulty));
+            const spawnY = Math.random() * (CANVAS_HEIGHT - 100) + 50;
+            entities.enemies.push(new Enemy(CANVAS_WIDTH + 50, spawnY, r.type, entities.difficulty));
+            
+            let particleColor = '#991b1b';
+            let particleType: 'normal' | 'fiery' | 'wispy' = 'normal';
+            if (r.type === 'bat') { particleColor = '#a855f7'; particleType = 'wispy'; }
+            else if (r.type === 'demon') { particleColor = '#f97316'; particleType = 'fiery'; }
+            else if (r.type === 'skeleton') { particleColor = '#f3f4f6'; particleType = 'normal'; }
+            else if (r.type === 'hunter') { particleColor = '#22c55e'; particleType = 'wispy'; }
+            else if (r.type === 'dodger') { particleColor = '#3b82f6'; particleType = 'fiery'; }
+
+            for (let i = 0; i < 15; i++) {
+              let vx = (Math.random() - 0.5) * 10;
+              let vy = (Math.random() - 0.5) * 10;
+              if (particleType === 'fiery') {
+                vy = -Math.random() * 8 - 1; // Fire goes up
+                vx *= 0.5;
+              } else if (particleType === 'wispy') {
+                vy *= 0.5; // Wisps float around
+              }
+              
+              entities.particles.push({
+                x: CANVAS_WIDTH + 50,
+                y: spawnY,
+                vx,
+                vy,
+                life: 1.0,
+                color: particleColor,
+                size: Math.random() * 4 + 2,
+                type: particleType
+              });
+            }
+
             entities.respawnQueue.splice(index, 1);
           }
         });
@@ -1228,14 +1268,15 @@ export default function Game() {
 
         if (entities.boss) {
           const b = entities.boss;
-          if (b.x > CANVAS_WIDTH - 150) b.x -= 2;
-          b.y += Math.sin(now * 0.002) * 2;
+          const timeMultiplier = player.slowTimeTimer > 0 ? 0.3 : 1;
+          if (b.x > CANVAS_WIDTH - 150) b.x -= 2 * timeMultiplier;
+          b.y += Math.sin(now * 0.002) * 2 * timeMultiplier;
 
-          if (now - b.lastAttack > 2000) {
+          if (now - b.lastAttack > 2000 / timeMultiplier) {
             if (!b.telegraphing) {
               b.telegraphing = true;
               b.lastAttack = now;
-            } else if (now - b.lastAttack > 500) {
+            } else if (now - b.lastAttack > 500 / timeMultiplier) {
               b.telegraphing = false;
               b.attackPattern = Math.floor(Math.random() * 3);
               b.lastAttack = now;
@@ -1270,7 +1311,7 @@ export default function Game() {
         const powerupInterval = 8000 / frequencyMultiplier;
 
         if (now - entities.lastPowerup > powerupInterval) {
-          const types: ('upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin')[] = ['upgrade', 'shield', 'life', 'invincible', 'magnet', 'coin', 'coin'];
+          const types: ('upgrade' | 'shield' | 'life' | 'invincible' | 'magnet' | 'coin' | 'slow_time')[] = ['upgrade', 'shield', 'life', 'invincible', 'magnet', 'coin', 'coin', 'slow_time'];
           const type = types[Math.floor(Math.random() * types.length)];
           let upgradeType: 'speed' | 'damage' | 'maxLives' | undefined;
           if (type === 'upgrade') {
@@ -1283,7 +1324,7 @@ export default function Game() {
         
         // Update Entities
         entities.enemies.forEach(e => {
-          e.update(player.y, player.bullets);
+          e.update(player.y, player.bullets, player.slowTimeTimer > 0);
           // Missed Enemy Penalty
           if (e.x < 0 && !e.passed) {
             e.passed = true;
@@ -1442,15 +1483,33 @@ export default function Game() {
                 entities.respawnQueue.push({ type: e.type, time: now + 5000 });
 
                 // Death particles
-                for (let i = 0; i < 10; i++) {
+                let particleColor = '#991b1b';
+                let particleType: 'normal' | 'fiery' | 'wispy' = 'normal';
+                if (e.type === 'bat') { particleColor = '#a855f7'; particleType = 'wispy'; }
+                else if (e.type === 'demon') { particleColor = '#f97316'; particleType = 'fiery'; }
+                else if (e.type === 'skeleton') { particleColor = '#f3f4f6'; particleType = 'normal'; }
+                else if (e.type === 'hunter') { particleColor = '#22c55e'; particleType = 'wispy'; }
+                else if (e.type === 'dodger') { particleColor = '#3b82f6'; particleType = 'fiery'; }
+
+                for (let i = 0; i < 15; i++) {
+                  let vx = (Math.random() - 0.5) * 12;
+                  let vy = (Math.random() - 0.5) * 12;
+                  if (particleType === 'fiery') {
+                    vy = -Math.random() * 10 - 2; // Fire goes up
+                    vx *= 0.5;
+                  } else if (particleType === 'wispy') {
+                    vy *= 0.5; // Wisps float around
+                  }
+                  
                   entitiesRef.current.particles.push({
                     x: e.x + e.width / 2,
                     y: e.y + e.height / 2,
-                    vx: (Math.random() - 0.5) * 12,
-                    vy: (Math.random() - 0.5) * 12,
+                    vx,
+                    vy,
                     life: 1.0,
-                    color: '#991b1b',
-                    size: Math.random() * 5 + 2
+                    color: particleColor,
+                    size: Math.random() * 5 + 2,
+                    type: particleType
                   });
                 }
 
@@ -1559,6 +1618,10 @@ export default function Game() {
                 player.upgrades.maxLives += 1;
                 spawnFloatingText(p.x, p.y, "MAX LIVES UP!", "#fbbf24");
               }
+            } else if (p.type === 'slow_time') {
+              player.slowTimeTimer = 300; // 5 seconds at 60fps
+              spawnFloatingText(p.x, p.y, "SLOW TIME!", "#60a5fa");
+              soundManager.slowTime();
             } else {
               player.powerUpType = p.type;
               player.powerUpTimer = 500; // frames
@@ -1580,6 +1643,10 @@ export default function Game() {
             player.invincible = false;
             player.magnet = false;
           }
+        }
+        
+        if (player.slowTimeTimer > 0) {
+          player.slowTimeTimer--;
         }
       }
       
@@ -1621,15 +1688,39 @@ export default function Game() {
 
       // Parallax Clouds/Stars Detail
       ctx.save();
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-      for (let i = 0; i < 30; i++) {
-        const cloudX = (entities.bgX * 0.2 + i * 200) % (CANVAS_WIDTH + 200) - 100;
-        const cloudY = (i * 53) % (CANVAS_HEIGHT / 2);
-        const cloudW = 60 + (i % 5) * 20;
-        const cloudH = 20 + (i % 3) * 10;
-        ctx.beginPath();
-        ctx.ellipse(cloudX, cloudY, cloudW, cloudH, 0, 0, Math.PI * 2);
-        ctx.fill();
+      if (selectedWorld === 'gg') {
+        // Pixel style animated clouds for GG world
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        for (let i = 0; i < 15; i++) {
+          const cloudSpeed = 0.3 + (i % 3) * 0.1;
+          const cloudX = ((entities.bgX * cloudSpeed) + i * 250) % (CANVAS_WIDTH + 300) - 150;
+          const cloudY = 20 + (i * 41) % (CANVAS_HEIGHT / 2.5);
+          
+          // Animate cloud shape slightly
+          const animOffset = Math.sin(now * 0.001 + i) * 5;
+          
+          // Pixel cloud clusters
+          ctx.fillRect(cloudX, cloudY, 40, 10);
+          ctx.fillRect(cloudX + 10, cloudY - 10, 30 + animOffset, 10);
+          ctx.fillRect(cloudX - 10, cloudY + 10, 50, 10);
+          ctx.fillRect(cloudX + 20, cloudY - 20, 20, 10);
+          
+          // Shading
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+          ctx.fillRect(cloudX - 10, cloudY + 20, 40, 5);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'; // reset
+        }
+      } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+        for (let i = 0; i < 30; i++) {
+          const cloudX = (entities.bgX * 0.2 + i * 200) % (CANVAS_WIDTH + 200) - 100;
+          const cloudY = (i * 53) % (CANVAS_HEIGHT / 2);
+          const cloudW = 60 + (i % 5) * 20;
+          const cloudH = 20 + (i % 3) * 10;
+          ctx.beginPath();
+          ctx.ellipse(cloudX, cloudY, cloudW, cloudH, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
       // Add more distant scenery
       ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
@@ -1807,13 +1898,18 @@ export default function Game() {
         } else if (selectedWorld === 'gold_mine') {
           ctx.fillRect(drawX, CANVAS_HEIGHT - 250, 60, 250);
         } else if (selectedWorld === 'gg') {
-          // Autumn Trees
+          // Autumn Trees (Pixel Style)
           ctx.fillStyle = '#451a03';
           ctx.fillRect(drawX, CANVAS_HEIGHT - 200, 20, 200);
           ctx.fillStyle = '#92400e';
-          ctx.beginPath();
-          ctx.arc(drawX + 10, CANVAS_HEIGHT - 200, 40, 0, Math.PI * 2);
-          ctx.fill();
+          // Pixel leaves cluster
+          ctx.fillRect(drawX - 20, CANVAS_HEIGHT - 220, 60, 40);
+          ctx.fillRect(drawX - 10, CANVAS_HEIGHT - 250, 40, 30);
+          ctx.fillRect(drawX - 40, CANVAS_HEIGHT - 200, 100, 20);
+          ctx.fillStyle = '#78350f'; // Shading
+          ctx.fillRect(drawX - 10, CANVAS_HEIGHT - 190, 20, 10);
+          ctx.fillRect(drawX + 20, CANVAS_HEIGHT - 210, 20, 20);
+          
           // Luke's Coffee Sign
           if (i % 2 === 0) {
             ctx.fillStyle = '#fef3c7';
@@ -1835,18 +1931,80 @@ export default function Game() {
           const x = (entities.bgX + i * 400) % (CANVAS_WIDTH + 400);
           const drawX = x - 200;
           const baseY = CANVAS_HEIGHT - 20;
+          
+          // Dead tree
+          ctx.fillStyle = '#000';
           ctx.fillRect(drawX, baseY - 150, 25, 150);
           ctx.fillRect(drawX - 40, baseY - 120, 50, 12);
+          ctx.fillRect(drawX + 25, baseY - 100, 30, 10);
+          ctx.fillRect(drawX - 20, baseY - 80, 20, 8);
+          
+          // Tombstones
+          ctx.fillStyle = '#1e293b';
+          ctx.beginPath();
+          ctx.roundRect(drawX + 100, baseY - 40, 30, 40, [15, 15, 0, 0]);
+          ctx.fill();
+          ctx.fillStyle = '#334155';
+          ctx.fillRect(drawX + 105, baseY - 30, 20, 4);
+          ctx.fillRect(drawX + 105, baseY - 20, 15, 4);
+
+          // Additional tombstone
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.roundRect(drawX + 180, baseY - 30, 25, 30, [10, 10, 0, 0]);
+          ctx.fill();
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(drawX + 185, baseY - 20, 15, 3);
+          
+          // Cross tombstone
+          if (i % 3 === 0) {
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(drawX + 250, baseY - 45, 10, 45);
+            ctx.fillRect(drawX + 240, baseY - 30, 30, 10);
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(drawX + 252, baseY - 40, 6, 35);
+          }
+          
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.roundRect(drawX - 100, baseY - 50, 40, 50, [20, 20, 0, 0]);
+          ctx.fill();
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(drawX - 90, baseY - 35, 20, 5);
+          ctx.fillRect(drawX - 90, baseY - 25, 20, 5);
+          
+          // Creepy glowing eyes in the dark
+          if (i % 2 === 0) {
+            ctx.fillStyle = '#ef4444';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ef4444';
+            ctx.fillRect(drawX + 60, baseY - 20, 4, 4);
+            ctx.fillRect(drawX + 70, baseY - 20, 4, 4);
+            ctx.shadowBlur = 0;
+          }
         }
       } else if (selectedWorld === 'forest') {
         ctx.fillStyle = '#064e3b';
         for (let i = 0; i < 6; i++) {
           const x = (entities.bgX * 1.1 + i * 200) % (CANVAS_WIDTH + 200);
-          ctx.beginPath();
-          ctx.moveTo(x - 100, CANVAS_HEIGHT);
-          ctx.lineTo(x, CANVAS_HEIGHT - 300);
-          ctx.lineTo(x + 100, CANVAS_HEIGHT);
-          ctx.fill();
+          const drawX = x - 100;
+          
+          // Pixel Pine Tree
+          ctx.fillStyle = '#064e3b';
+          // Layers of leaves
+          ctx.fillRect(drawX + 40, CANVAS_HEIGHT - 300, 20, 60);
+          ctx.fillRect(drawX + 20, CANVAS_HEIGHT - 260, 60, 40);
+          ctx.fillRect(drawX, CANVAS_HEIGHT - 220, 100, 40);
+          ctx.fillRect(drawX - 20, CANVAS_HEIGHT - 180, 140, 40);
+          ctx.fillRect(drawX - 40, CANVAS_HEIGHT - 140, 180, 140);
+          
+          // Shading
+          ctx.fillStyle = '#022c22';
+          ctx.fillRect(drawX + 50, CANVAS_HEIGHT - 290, 10, 50);
+          ctx.fillRect(drawX + 50, CANVAS_HEIGHT - 250, 30, 30);
+          ctx.fillRect(drawX + 50, CANVAS_HEIGHT - 210, 50, 30);
+          ctx.fillRect(drawX + 50, CANVAS_HEIGHT - 170, 70, 30);
+          ctx.fillRect(drawX + 50, CANVAS_HEIGHT - 130, 90, 130);
         }
       } else if (selectedWorld === 'gg') {
         for (let i = 0; i < 6; i++) {
@@ -1861,13 +2019,17 @@ export default function Game() {
           ctx.arc(drawX + 2.5, CANVAS_HEIGHT - 120, 15, 0, Math.PI * 2);
           ctx.fill();
 
-          // Autumn Tree
+          // Autumn Tree (Pixel Style Leaves)
           ctx.fillStyle = '#78350f';
           ctx.fillRect(drawX + 50, CANVAS_HEIGHT - 60, 10, 60);
           ctx.fillStyle = '#f59e0b';
-          ctx.beginPath();
-          ctx.arc(drawX + 55, CANVAS_HEIGHT - 80, 25, 0, Math.PI * 2);
-          ctx.fill();
+          // Pixel leaves cluster
+          ctx.fillRect(drawX + 35, CANVAS_HEIGHT - 80, 40, 20);
+          ctx.fillRect(drawX + 45, CANVAS_HEIGHT - 100, 20, 20);
+          ctx.fillRect(drawX + 25, CANVAS_HEIGHT - 70, 60, 10);
+          ctx.fillStyle = '#d97706'; // Darker shading
+          ctx.fillRect(drawX + 40, CANVAS_HEIGHT - 65, 10, 5);
+          ctx.fillRect(drawX + 60, CANVAS_HEIGHT - 75, 10, 10);
 
           // Sign 1: Luke's Diner
           if (i % 2 === 0) {
@@ -1901,26 +2063,6 @@ export default function Game() {
             ctx.textAlign = 'center';
             ctx.fillText("Luke's", signX + 25, signY + 15);
             ctx.fillText("Diner", signX + 25, signY + 28);
-            ctx.textAlign = 'left';
-          }
-
-          // Sign 2: Iz's Ideas
-          if (i % 2 !== 0) {
-            const signX = drawX + 100;
-            const signY = CANVAS_HEIGHT - 200;
-            // Star
-            ctx.fillStyle = '#facc15';
-            ctx.beginPath();
-            for (let j = 0; j < 5; j++) {
-              ctx.lineTo(signX + Math.cos((j * 4 * Math.PI) / 5) * 30, signY + Math.sin((j * 4 * Math.PI) / 5) * 30);
-            }
-            ctx.closePath();
-            ctx.fill();
-            // Text
-            ctx.fillStyle = '#451a03';
-            ctx.font = 'italic 12px cursive';
-            ctx.textAlign = 'center';
-            ctx.fillText("Iz's Ideas", signX, signY + 5);
             ctx.textAlign = 'left';
           }
         }
@@ -1991,11 +2133,20 @@ export default function Game() {
         }
       } else if (selectedWorld === 'graveyard') {
         // Fog
-        const fogGradient = ctx.createLinearGradient(0, CANVAS_HEIGHT - 80, 0, CANVAS_HEIGHT);
+        const fogGradient = ctx.createLinearGradient(0, CANVAS_HEIGHT - 120, 0, CANVAS_HEIGHT);
         fogGradient.addColorStop(0, 'transparent');
-        fogGradient.addColorStop(1, 'rgba(148, 163, 184, 0.15)');
+        fogGradient.addColorStop(1, 'rgba(148, 163, 184, 0.25)');
         ctx.fillStyle = fogGradient;
-        ctx.fillRect(0, CANVAS_HEIGHT - 80, CANVAS_WIDTH, 80);
+        ctx.fillRect(0, CANVAS_HEIGHT - 120, CANVAS_WIDTH, 120);
+        
+        // Moving fog clouds
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.1)';
+        for (let i = 0; i < 5; i++) {
+          const fogX = (entities.bgX * 0.5 + now * 0.02 + i * 200) % (CANVAS_WIDTH + 200) - 100;
+          ctx.beginPath();
+          ctx.ellipse(fogX, CANVAS_HEIGHT - 40, 100, 30, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
       } else if (selectedWorld === 'disco') {
         // Strobe
         if (Math.floor(now / 200) % 2 === 0) {
@@ -2212,7 +2363,9 @@ export default function Game() {
       ctx.fill();
 
       // Main Body
-      if (customization.costume === 'vibe_coding') {
+      if (customization.costume === 'gameboy') {
+        ctx.fillStyle = '#c4cfa1'; // Gameboy body color
+      } else if (customization.costume === 'vibe_coding') {
         const gradient = ctx.createLinearGradient(-PLAYER_SIZE/2, -PLAYER_SIZE/2, PLAYER_SIZE/2, PLAYER_SIZE/2);
         gradient.addColorStop(0, `hsl(${(now * 0.1) % 360}, 100%, 70%)`);
         gradient.addColorStop(0.5, `hsl(${(now * 0.1 + 120) % 360}, 100%, 70%)`);
@@ -2245,6 +2398,25 @@ export default function Game() {
           const sy = Math.cos(now * 0.01 + i) * 10;
           ctx.fillRect(sx, sy, 1, 1);
         }
+      } else if (customization.costume === 'gameboy') {
+        // Gameboy details
+        // Screen background
+        ctx.fillStyle = '#8bac0f';
+        ctx.fillRect(-12, -12, 24, 10);
+        
+        ctx.fillStyle = '#0f380f'; // Dark green
+        // D-pad
+        ctx.fillRect(-10, 2, 6, 2);
+        ctx.fillRect(-8, 0, 2, 6);
+        // Buttons
+        ctx.beginPath();
+        ctx.arc(6, 4, 1.5, 0, Math.PI * 2);
+        ctx.arc(10, 2, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        // Screen lines
+        ctx.strokeStyle = '#5c6b40';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-12, -12, 24, 10);
       }
 
       // Highlight
@@ -2253,22 +2425,34 @@ export default function Game() {
       ctx.fillRect(-12, -10, 4, 6);
       
       // Face
-      ctx.fillStyle = '#000';
-      // Eyes (Square pixel style)
-      ctx.fillRect(-8, -5, 5, 5); // Eye L
-      ctx.fillRect(4, -5, 5, 5);  // Eye R
-      // Smile
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 4, 8, 0, Math.PI);
-      ctx.stroke();
-      // Tongue (More detailed)
-      ctx.fillStyle = '#ef4444';
-      ctx.fillRect(2, 8, 7, 10);
-      ctx.fillStyle = '#b91c1c'; // Tongue shading
-      ctx.fillRect(7, 8, 2, 10);
-      ctx.fillStyle = '#f87171'; // Tongue highlight
-      ctx.fillRect(3, 9, 2, 2);
+      if (customization.costume === 'gameboy') {
+        ctx.fillStyle = '#0f380f';
+        // Eyes (Square pixel style, fit in screen)
+        ctx.fillRect(-8, -10, 4, 4); // Eye L
+        ctx.fillRect(4, -10, 4, 4);  // Eye R
+        // Smile (Pixel style)
+        ctx.fillRect(-4, -5, 8, 2);
+        ctx.fillRect(-6, -7, 2, 2);
+        ctx.fillRect(4, -7, 2, 2);
+      } else {
+        ctx.fillStyle = '#000';
+        // Eyes (Square pixel style)
+        ctx.fillRect(-8, -5, 5, 5); // Eye L
+        ctx.fillRect(4, -5, 5, 5);  // Eye R
+        // Smile
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 4, 8, 0, Math.PI);
+        ctx.stroke();
+        
+        // Tongue (More detailed)
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(2, 8, 7, 10);
+        ctx.fillStyle = '#b91c1c'; // Tongue shading
+        ctx.fillRect(7, 8, 2, 10);
+        ctx.fillStyle = '#f87171'; // Tongue highlight
+        ctx.fillRect(3, 9, 2, 2);
+      }
       
       // Shield or Invincible
       if (player.shield || player.invincible) {
@@ -2303,7 +2487,19 @@ export default function Game() {
       entities.particles.forEach(p => {
         ctx.globalAlpha = p.life;
         ctx.fillStyle = p.color;
-        ctx.fillRect(p.x, p.y, p.size, p.size);
+        if (p.type === 'wispy') {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (p.type === 'fiery') {
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y - p.size);
+          ctx.lineTo(p.x + p.size/2, p.y + p.size/2);
+          ctx.lineTo(p.x - p.size/2, p.y + p.size/2);
+          ctx.fill();
+        } else {
+          ctx.fillRect(p.x, p.y, p.size, p.size);
+        }
         ctx.globalAlpha = 1;
       });
       entities.floatingTexts.forEach(t => {
@@ -2349,6 +2545,18 @@ export default function Game() {
         ctx.strokeRect(-60, -90, 120, 12);
         
         ctx.restore();
+      }
+
+      // Slow Time Visual Effect
+      if (playerRef.current.slowTimeTimer > 0) {
+        ctx.fillStyle = 'rgba(96, 165, 250, 0.15)';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        // Vignette
+        const gradient = ctx.createRadialGradient(CANVAS_WIDTH/2, CANVAS_HEIGHT/2, CANVAS_HEIGHT/3, CANVAS_WIDTH/2, CANVAS_HEIGHT/2, CANVAS_WIDTH/2);
+        gradient.addColorStop(0, 'rgba(96, 165, 250, 0)');
+        gradient.addColorStop(1, 'rgba(96, 165, 250, 0.4)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
       }
       
       ctx.restore();
@@ -2568,6 +2776,7 @@ export default function Game() {
               {[
                 { id: 'vibe_coding', name: 'Vibe Coding, Gemini Style', icon: '🌈', cost: 1, desc: 'Trippy rainbow tie-dye trail' },
                 { id: 'cosmic_wanderer', name: 'Cosmic Wanderer', icon: '🌌', cost: 150, desc: 'Swirling galaxy with nebula trail' },
+                { id: 'gameboy', name: 'The Boy Who Cried Game', icon: '👾', cost: 0, desc: 'Retro 8-bit handheld style' },
               ].map((costume) => (
                 <div key={costume.id} className="p-3 bg-slate-800/50 rounded-2xl border border-slate-700/50 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -2822,6 +3031,7 @@ export default function Game() {
                     { id: 'ghostly_dance', name: 'Ghostly Dance', desc: 'Pulsates to the spectral beat' },
                     { id: 'vibe_coding', name: 'Vibe Coding, Gemini Style', desc: 'Trippy rainbow tie-dye trail' },
                     { id: 'cosmic_wanderer', name: 'Cosmic Wanderer', desc: 'Swirling galaxy with nebula trail' },
+                    { id: 'gameboy', name: 'The Boy Who Cried Game', desc: 'Retro 8-bit handheld style' },
                   ].filter(c => unlockedCostumes.includes(c.id)).map(costume => (
                     <button 
                       key={costume.id}
