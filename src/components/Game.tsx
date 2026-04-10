@@ -10,7 +10,7 @@ const PLAYER_SIZE = 32;
 const ENEMY_TYPES = ['bat', 'demon', 'skeleton', 'hunter', 'dodger'] as const;
 type EnemyType = (typeof ENEMY_TYPES)[number];
 
-type WorldType = 'graveyard' | 'forest' | 'crypt' | 'disco' | 'gold_mine' | 'gg' | 'halloween' | 'christmas' | 'new_year' | 'valentines' | 'easter' | 'out_of_this_world';
+type WorldType = 'graveyard' | 'forest' | 'crypt' | 'disco' | 'gold_mine' | 'gg' | 'halloween' | 'christmas' | 'new_year' | 'valentines' | 'easter' | 'out_of_this_world' | 'cyberpunk' | 'underwater' | 'volcano';
 
 interface Objective {
   text: string;
@@ -869,7 +869,7 @@ export default function Game() {
   const [showInitialsPrompt, setShowInitialsPrompt] = useState(false);
   const [initials, setInitials] = useState('');
   const [tempScore, setTempScore] = useState(0);
-  const [settings, setSettings] = useState({ invertControls: false, screenShakeIntensity: 100 });
+  const [settings, setSettings] = useState({ invertControls: false, screenShakeIntensity: 100, controlType: 'touch' as 'touch' | 'keyboard' });
   const [customization, setCustomization] = useState({ 
     ghostColor: '#a855f7', 
     trailColor: '#d8b4fe',
@@ -985,6 +985,8 @@ export default function Game() {
   }, [purchasedWorld]);
 
   const keysRef = useRef<Set<string>>(new Set());
+  const touchPosRef = useRef<{ x: number, y: number } | null>(null);
+  const isTouchingRef = useRef(false);
 
   useEffect(() => {
     const savedLeaderboard = localStorage.getItem('ghost_shooter_leaderboard_v2');
@@ -1206,7 +1208,7 @@ export default function Game() {
         });
         
         // Player Movement
-        const isShooting = keysRef.current.has('Space') || keysRef.current.has('KeyK');
+        const isShooting = settings.controlType === 'touch' ? true : (keysRef.current.has('Space') || keysRef.current.has('KeyK'));
         let moveSpeed = (isShooting ? 5 : 8) + player.upgrades.speed;
         if (player.powerUpType === 'energy_drink') {
           moveSpeed *= 1.5; // 50% speed boost
@@ -1222,18 +1224,26 @@ export default function Game() {
           // Force player to center-left during intro
           player.y += (CANVAS_HEIGHT / 2 - player.y) * 0.1;
         } else {
-          if (upKey) {
-            player.y -= moveSpeed;
-            if (tutorialStep === 0) {
-              setTutorialStep(1);
-              setObjective({ text: 'Shoot with SPACE or K', target: 1, current: 0, type: 'score' });
+          if (settings.controlType === 'touch' && touchPosRef.current) {
+            const targetY = touchPosRef.current.y;
+            const dy = targetY - player.y;
+            if (Math.abs(dy) > 5) {
+              player.y += Math.sign(dy) * moveSpeed;
             }
-          }
-          if (downKey) {
-            player.y += moveSpeed;
-            if (tutorialStep === 0) {
-              setTutorialStep(1);
-              setObjective({ text: 'Shoot with SPACE or K', target: 1, current: 0, type: 'score' });
+          } else {
+            if (upKey) {
+              player.y -= moveSpeed;
+              if (tutorialStep === 0) {
+                setTutorialStep(1);
+                setObjective({ text: 'Shoot with SPACE or K', target: 1, current: 0, type: 'score' });
+              }
+            }
+            if (downKey) {
+              player.y += moveSpeed;
+              if (tutorialStep === 0) {
+                setTutorialStep(1);
+                setObjective({ text: 'Shoot with SPACE or K', target: 1, current: 0, type: 'score' });
+              }
             }
           }
         }
@@ -1809,7 +1819,10 @@ export default function Game() {
         christmas: ['#064e3b', '#14532d'],
         new_year: ['#020617', '#1e1b4b'],
         valentines: ['#4c0519', '#831843'],
-        out_of_this_world: ['#020617', '#1e1b4b']
+        out_of_this_world: ['#020617', '#1e1b4b'],
+        cyberpunk: ['#020617', '#1e1b4b'],
+        underwater: ['#083344', '#164e63'],
+        volcano: ['#450a0a', '#1a0505']
       };
       const skyGradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
       skyGradient.addColorStop(0, skyGradients[selectedWorld]?.[0] || '#020617');
@@ -1958,7 +1971,10 @@ export default function Game() {
         halloween: '#f97316',
         christmas: '#ef4444',
         new_year: '#f1f5f9',
-        valentines: '#f43f5e'
+        valentines: '#f43f5e',
+        cyberpunk: '#ec4899',
+        underwater: '#22d3ee',
+        volcano: '#f97316'
       };
       const orbColor = orbColors[selectedWorld];
       ctx.fillStyle = orbColor;
@@ -2000,11 +2016,15 @@ export default function Game() {
         christmas: ['#064e3b', '#052e16'],
         new_year: ['#0f172a', '#020617'],
         valentines: ['#701a75', '#4c0519'],
-        out_of_this_world: ['#020617', '#000']
+        out_of_this_world: ['#020617', '#000'],
+        cyberpunk: ['#1e1b4b', '#020617'],
+        underwater: ['#164e63', '#083344'],
+        volcano: ['#450a0a', '#1a0505']
       };
       
+      // 4. Far Background (Hills/Mountains)
       for (let i = 0; i < 3; i++) {
-        const x = (entities.bgX * 0.5 + i * 400) % (CANVAS_WIDTH + 400);
+        const x = (entities.bgX * 0.3 + i * 400) % (CANVAS_WIDTH + 400);
         const colors = hillColors[selectedWorld] || ['#0f172a', '#020617'];
         const grad = ctx.createLinearGradient(x, CANVAS_HEIGHT - 200, x, CANVAS_HEIGHT);
         grad.addColorStop(0, colors[0]);
@@ -2013,14 +2033,27 @@ export default function Game() {
         
         ctx.beginPath();
         ctx.moveTo(x - 200, CANVAS_HEIGHT);
-        if (selectedWorld === 'gold_mine') {
-          ctx.lineTo(x, CANVAS_HEIGHT - 200);
+        if (selectedWorld === 'gold_mine' || selectedWorld === 'volcano') {
+          ctx.lineTo(x, CANVAS_HEIGHT - 250);
           ctx.lineTo(x + 200, CANVAS_HEIGHT);
         } else {
           ctx.quadraticCurveTo(x, CANVAS_HEIGHT - 150, x + 200, CANVAS_HEIGHT);
         }
         ctx.fill();
       }
+
+      // 4.5 Mid-Far Background (More layering)
+      ctx.globalAlpha = 0.5;
+      for (let i = 0; i < 4; i++) {
+        const x = (entities.bgX * 0.6 + i * 300) % (CANVAS_WIDTH + 300);
+        const colors = hillColors[selectedWorld] || ['#0f172a', '#020617'];
+        ctx.fillStyle = colors[0];
+        ctx.beginPath();
+        ctx.moveTo(x - 150, CANVAS_HEIGHT);
+        ctx.quadraticCurveTo(x, CANVAS_HEIGHT - 100, x + 150, CANVAS_HEIGHT);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
 
       // 5. Mid Background (Trees/Pillars)
       const midColors = { 
@@ -2034,7 +2067,10 @@ export default function Game() {
         halloween: '#0c0a09',
         christmas: '#052e16',
         new_year: '#020617',
-        valentines: '#4c0519'
+        valentines: '#4c0519',
+        cyberpunk: '#020617',
+        underwater: '#083344',
+        volcano: '#1a0505'
       };
       ctx.fillStyle = midColors[selectedWorld];
       for (let i = 0; i < 5; i++) {
@@ -2069,6 +2105,64 @@ export default function Game() {
           ctx.lineTo(drawX + 80, 0);
           ctx.closePath();
           ctx.fill();
+        } else if (selectedWorld === 'cyberpunk') {
+          // Neon Skyscrapers
+          ctx.fillStyle = '#020617';
+          ctx.fillRect(drawX, CANVAS_HEIGHT - 350, 80, 350);
+          // Windows
+          ctx.fillStyle = i % 2 === 0 ? '#ec4899' : '#06b6d4';
+          for (let row = 0; row < 10; row++) {
+            for (let col = 0; col < 3; col++) {
+              if (Math.random() > 0.3) {
+                ctx.fillRect(drawX + 10 + col * 20, CANVAS_HEIGHT - 340 + row * 30, 10, 15);
+              }
+            }
+          }
+          // Neon signs
+          if (i % 3 === 0) {
+            ctx.fillStyle = '#ec4899';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ec4899';
+            ctx.fillRect(drawX - 10, CANVAS_HEIGHT - 300, 5, 100);
+            ctx.shadowBlur = 0;
+          }
+        } else if (selectedWorld === 'underwater') {
+          // Seaweed
+          ctx.fillStyle = '#065f46';
+          ctx.beginPath();
+          ctx.moveTo(drawX, CANVAS_HEIGHT);
+          for (let j = 0; j < 5; j++) {
+            ctx.quadraticCurveTo(drawX + Math.sin(now * 0.002 + i + j) * 20, CANVAS_HEIGHT - j * 40, drawX, CANVAS_HEIGHT - (j + 1) * 40);
+          }
+          ctx.lineWidth = 10;
+          ctx.strokeStyle = '#065f46';
+          ctx.stroke();
+          // Bubbles
+          if (Math.random() < 0.05) {
+            entities.particles.push({
+              x: drawX + Math.random() * 40,
+              y: CANVAS_HEIGHT,
+              vx: (Math.random() - 0.5) * 1,
+              vy: -Math.random() * 2 - 1,
+              life: 1,
+              color: '#fff',
+              size: Math.random() * 3 + 1
+            });
+          }
+        } else if (selectedWorld === 'volcano') {
+          // Sharp rocks
+          ctx.fillStyle = '#1a0505';
+          ctx.beginPath();
+          ctx.moveTo(drawX, CANVAS_HEIGHT);
+          ctx.lineTo(drawX + 30, CANVAS_HEIGHT - 150);
+          ctx.lineTo(drawX + 60, CANVAS_HEIGHT);
+          ctx.fill();
+          // Lava glow
+          const grad = ctx.createLinearGradient(0, CANVAS_HEIGHT - 50, 0, CANVAS_HEIGHT);
+          grad.addColorStop(0, 'transparent');
+          grad.addColorStop(1, '#ef4444');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, CANVAS_HEIGHT - 50, CANVAS_WIDTH, 50);
         } else if (selectedWorld === 'gold_mine') {
           // Detailed Mine Supports
           ctx.fillStyle = '#451a03';
@@ -2558,6 +2652,47 @@ export default function Game() {
           ctx.fillStyle = '#1e293b';
           ctx.fillRect(x + 32, CANVAS_HEIGHT - 12, 4, 2);
           ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // Reset
+        }
+      }
+      ctx.restore();
+
+      // 6. Foreground Layer (Fastest scroll)
+      ctx.save();
+      ctx.globalAlpha = 0.7;
+      for (let i = 0; i < 6; i++) {
+        const x = (entities.bgX * 1.5 + i * 200) % (CANVAS_WIDTH + 200);
+        const drawX = x - 100;
+        
+        if (selectedWorld === 'graveyard') {
+          // Foreground grass/mist
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+          ctx.beginPath();
+          ctx.moveTo(drawX, CANVAS_HEIGHT);
+          ctx.lineTo(drawX + 20, CANVAS_HEIGHT - 30);
+          ctx.lineTo(drawX + 40, CANVAS_HEIGHT);
+          ctx.fill();
+        } else if (selectedWorld === 'cyberpunk') {
+          // Foreground rain
+          ctx.strokeStyle = 'rgba(96, 165, 250, 0.2)';
+          ctx.lineWidth = 1;
+          for (let r = 0; r < 5; r++) {
+            const rx = drawX + Math.random() * 200;
+            const ry = Math.random() * CANVAS_HEIGHT;
+            ctx.beginPath();
+            ctx.moveTo(rx, ry);
+            ctx.lineTo(rx - 10, ry + 20);
+            ctx.stroke();
+          }
+        } else if (selectedWorld === 'underwater') {
+          // Foreground bubbles
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+          ctx.beginPath();
+          ctx.arc(drawX + 50, CANVAS_HEIGHT - 100, 10, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (selectedWorld === 'volcano') {
+          // Ash particles
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+          ctx.fillRect(drawX + Math.random() * 100, Math.random() * CANVAS_HEIGHT, 2, 2);
         }
       }
       ctx.restore();
@@ -3354,6 +3489,9 @@ export default function Game() {
                 { id: 'disco', name: 'Disco Inferno', icon: '🕺', cost: 2500, desc: 'A neon-lit spectral dance floor' },
                 { id: 'gold_mine', name: 'Gilded Grotto', icon: '⛏️', cost: 5000, desc: 'A mine filled with spectral gold' },
                 { id: 'out_of_this_world', name: 'Out of this World', icon: '🌌', cost: 99, desc: 'A cosmic journey through the stars' },
+                { id: 'cyberpunk', name: 'Neo-Tokyo', icon: '🌃', cost: 7500, desc: 'A rain-slicked neon metropolis' },
+                { id: 'underwater', name: 'Abyssal Trench', icon: '🌊', cost: 10000, desc: 'Deep sea exploration with bioluminescence' },
+                { id: 'volcano', name: 'Magma Chamber', icon: '🌋', cost: 15000, desc: 'A dangerous trek through a volcanic core' },
               ].map((world) => (
                 <div key={world.id} className="p-3 bg-slate-800/50 rounded-2xl border border-slate-700/50 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -3470,6 +3608,27 @@ export default function Game() {
                 </button>
               </div>
 
+              <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+                <div>
+                  <p className="font-bold text-sm">Control Mode</p>
+                  <p className="text-[10px] text-slate-500">Keyboard vs Touchscreen</p>
+                </div>
+                <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-700">
+                  <button 
+                    onClick={() => { setSettings(s => ({ ...s, controlType: 'keyboard' })); soundManager.click(); }}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-black transition-all ${settings.controlType === 'keyboard' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                  >
+                    KEYS
+                  </button>
+                  <button 
+                    onClick={() => { setSettings(s => ({ ...s, controlType: 'touch' })); soundManager.click(); }}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-black transition-all ${settings.controlType === 'touch' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                  >
+                    TOUCH
+                  </button>
+                </div>
+              </div>
+
               <div className="p-3 bg-slate-800/50 rounded-2xl border border-slate-700/50">
                 <div className="flex justify-between mb-1">
                   <p className="font-bold text-sm">Screen Shake</p>
@@ -3501,7 +3660,10 @@ export default function Game() {
                       new_year: { name: 'Midnight Gala', icon: '🎆', holiday: true, colors: ['#020617', '#1e1b4b'] },
                       valentines: { name: 'Love Labyrinth', icon: '💝', holiday: true, colors: ['#4c0519', '#831843'] },
                       easter: { name: 'Easter Egg-stravaganza', icon: '🐰', holiday: true, colors: ['#0ea5e9', '#38bdf8'] },
-                      out_of_this_world: { name: 'Out of this World', icon: '🌌', colors: ['#020617', '#1e1b4b'] }
+                      out_of_this_world: { name: 'Out of this World', icon: '🌌', colors: ['#020617', '#1e1b4b'] },
+                      cyberpunk: { name: 'Neo-Tokyo', icon: '🌃', colors: ['#1e1b4b', '#020617'] },
+                      underwater: { name: 'Abyssal Trench', icon: '🌊', colors: ['#164e63', '#083344'] },
+                      volcano: { name: 'Magma Chamber', icon: '🌋', colors: ['#450a0a', '#1a0505'] }
                     }[world];
                     
                     if (!worldInfo) return null;
@@ -3981,21 +4143,21 @@ export default function Game() {
                 }}
                 transition={{ duration: 0.3 }}
                 key={combo}
-                className="bg-gradient-to-r from-yellow-500 to-orange-500 backdrop-blur-md px-6 py-3 rounded-2xl border-2 border-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.5)] self-start"
+                className="bg-gradient-to-r from-yellow-500 to-orange-500 backdrop-blur-md px-3 py-1.5 rounded-xl border border-yellow-400/50 shadow-lg self-start opacity-70"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <div className="flex flex-col">
-                    <p className="text-[10px] text-yellow-100 uppercase font-black tracking-widest leading-none mb-1">Combo Multiplier</p>
-                    <p className="text-3xl font-black text-white italic drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">
+                    <p className="text-[8px] text-yellow-100 uppercase font-black tracking-widest leading-none mb-0.5">Combo</p>
+                    <p className="text-xl font-black text-white italic drop-shadow-md">
                       x{(1 + combo * 0.1).toFixed(1)}
                     </p>
                   </div>
                   <motion.div 
                     animate={{ rotate: 360 }}
                     transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                    className="w-8 h-8 rounded-full border-2 border-dashed border-yellow-200 flex items-center justify-center"
+                    className="w-5 h-5 rounded-full border border-dashed border-yellow-200 flex items-center justify-center"
                   >
-                    <div className="w-4 h-4 rounded-full bg-white shadow-[0_0_10px_white]" />
+                    <div className="w-2 h-2 rounded-full bg-white shadow-[0_0_5px_white]" />
                   </motion.div>
                 </div>
                 {/* Combo Progress Bar */}
@@ -4036,7 +4198,7 @@ export default function Game() {
             </div>
 
             {/* Objective UI */}
-            {objective && (
+            {objective && !hasCompletedTutorial && (
               <motion.div 
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
