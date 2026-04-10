@@ -7,7 +7,7 @@ import { Ghost, Heart, Play, RotateCcw, Trophy, Calendar } from 'lucide-react';
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 450;
 const PLAYER_SIZE = 32;
-const ENEMY_TYPES = ['bat', 'demon', 'skeleton', 'hunter', 'dodger'] as const;
+const ENEMY_TYPES = ['bat', 'demon', 'skeleton', 'hunter', 'dodger', 'tank', 'diver'] as const;
 type EnemyType = (typeof ENEMY_TYPES)[number];
 
 type WorldType = 'graveyard' | 'forest' | 'crypt' | 'disco' | 'gold_mine' | 'gg' | 'halloween' | 'christmas' | 'new_year' | 'valentines' | 'easter' | 'out_of_this_world' | 'cyberpunk' | 'underwater' | 'volcano';
@@ -188,6 +188,16 @@ class Enemy {
         this.health = 1;
         this.speed *= 1.1;
         break;
+      case 'tank':
+        this.health = 5;
+        this.speed *= 0.5;
+        this.width = 60;
+        this.height = 60;
+        break;
+      case 'diver':
+        this.health = 1;
+        this.speed *= 1.5;
+        break;
     }
     this.maxHealth = this.health;
   }
@@ -204,20 +214,34 @@ class Enemy {
       if (this.type === 'bat') {
         this.y += Math.sin(Date.now() * 0.01) * this.sinModifier * timeMultiplier;
       } else if (this.type === 'hunter') {
-        // Pursue player
+        // Pursue player aggressively
         const dy = playerY - this.y;
-        this.y += Math.sign(dy) * 1.5 * timeMultiplier;
+        this.y += Math.sign(dy) * 2 * timeMultiplier;
+        // Also move forward slightly faster if far away
+        if (this.x > 400) this.x -= 1 * timeMultiplier;
       } else if (this.type === 'dodger') {
-        // Dodge bullets
+        // Dodge bullets with more awareness
         bullets.forEach(b => {
           const dx = b.x - this.x;
           const dy = b.y - this.y;
-          if (dx > -100 && dx < 0 && Math.abs(dy) < 50) {
-            this.y += Math.sign(dy) * -3 * timeMultiplier;
+          // If bullet is close and on similar Y level
+          if (dx > -150 && dx < 0 && Math.abs(dy) < 60) {
+            // Move away from bullet Y
+            const dodgeDir = dy > 0 ? -1 : 1;
+            this.y += dodgeDir * 4 * timeMultiplier;
           }
         });
+      } else if (this.type === 'diver') {
+        // Zig-zag dive pattern
+        this.y += Math.sin(this.x * 0.05) * 5 * timeMultiplier;
+      } else if (this.type === 'tank') {
+        // Slow and steady
+        this.y += Math.sin(this.x * 0.01) * 1 * timeMultiplier;
       }
     }
+
+    // Keep in bounds vertically
+    this.y = Math.max(0, Math.min(CANVAS_HEIGHT - this.height, this.y));
 
     if (this.x < -this.width || this.x > CANVAS_WIDTH + 200 || this.y < -this.height || this.y > CANVAS_HEIGHT + 100) this.active = false;
   }
@@ -344,6 +368,60 @@ class Enemy {
         ctx.moveTo(15, 10);
         ctx.lineTo(20, 20);
         ctx.stroke();
+      } else if (this.type === 'hunter') {
+        // GG Delivery Bag
+        ctx.fillStyle = '#b45309';
+        ctx.fillRect(5, 10, 30, 25);
+        ctx.fillStyle = '#92400e';
+        ctx.fillRect(5, 30, 30, 5);
+        // Handles
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(10, 10); ctx.lineTo(10, 5); ctx.lineTo(15, 5); ctx.lineTo(15, 10);
+        ctx.moveTo(25, 10); ctx.lineTo(25, 5); ctx.lineTo(30, 5); ctx.lineTo(30, 10);
+        ctx.stroke();
+      } else if (this.type === 'dodger') {
+        // GG Rolling Donut
+        ctx.fillStyle = '#f9a8d4';
+        ctx.beginPath();
+        ctx.arc(20, 20, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#92400e';
+        ctx.beginPath();
+        ctx.arc(20, 20, 5, 0, Math.PI * 2);
+        ctx.fill();
+        // Sprinkles
+        ctx.fillStyle = '#60a5fa'; ctx.fillRect(12, 12, 2, 4);
+        ctx.fillStyle = '#fbbf24'; ctx.fillRect(25, 15, 4, 2);
+        ctx.fillStyle = '#ef4444'; ctx.fillRect(18, 28, 2, 4);
+      } else if (this.type === 'tank') {
+        // GG Giant Coffee Machine
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(5, 5, 50, 50);
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(10, 10, 40, 30); // Screen
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(15, 45, 10, 5); // Button
+        ctx.fillStyle = '#22c55e';
+        ctx.fillRect(35, 45, 10, 5); // Button
+      } else if (this.type === 'diver') {
+        // GG Flying Pizza Slice
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.moveTo(5, 35);
+        ctx.lineTo(20, 5);
+        ctx.lineTo(35, 35);
+        ctx.closePath();
+        ctx.fill();
+        // Crust
+        ctx.fillStyle = '#b45309';
+        ctx.fillRect(5, 35, 30, 5);
+        // Pepperoni
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath(); ctx.arc(15, 25, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(25, 20, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(20, 30, 3, 0, Math.PI * 2); ctx.fill();
       } else {
         // Default for other types in GG
         ctx.fillStyle = '#facc15';
@@ -464,6 +542,39 @@ class Enemy {
       ctx.shadowColor = '#06b6d4';
       ctx.fillRect(16, 16, 8, 8);
       ctx.shadowBlur = 0;
+    } else if (this.type === 'tank') {
+      // Pixel Tank
+      ctx.fillStyle = '#4b5563';
+      // Heavy Body
+      ctx.fillRect(5, 5, 50, 50);
+      ctx.fillStyle = '#1f2937'; // Shading
+      ctx.fillRect(5, 45, 50, 10);
+      // Armor plates
+      ctx.fillStyle = '#6b7280';
+      ctx.fillRect(10, 10, 10, 10);
+      ctx.fillRect(40, 10, 10, 10);
+      ctx.fillRect(10, 30, 10, 10);
+      ctx.fillRect(40, 30, 10, 10);
+      // Eyes
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(20, 20, 4, 4);
+      ctx.fillRect(36, 20, 4, 4);
+    } else if (this.type === 'diver') {
+      // Pixel Diver
+      ctx.fillStyle = '#fbbf24';
+      // Sharp Body
+      ctx.beginPath();
+      ctx.moveTo(0, 20);
+      ctx.lineTo(40, 0);
+      ctx.lineTo(40, 40);
+      ctx.closePath();
+      ctx.fill();
+      // Tail
+      ctx.fillStyle = '#d97706';
+      ctx.fillRect(35, 10, 10, 20);
+      // Eye
+      ctx.fillStyle = '#000';
+      ctx.fillRect(10, 18, 4, 4);
     }
     
     ctx.restore();
@@ -586,11 +697,17 @@ class SoundManager {
   musicGain: GainNode | null = null;
   musicInterval: any = null;
   beatCount = 0;
+  beatPulse = 0;
 
   init() {
     if (!this.ctx) {
       this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
+  }
+
+  getBeatPulse() {
+    this.beatPulse *= 0.92; // Decay
+    return this.beatPulse;
   }
 
   private playTone(freq: number, type: OscillatorType, duration: number, volume: number, slideTo?: number) {
@@ -655,6 +772,7 @@ class SoundManager {
     osc.start(t);
     osc.stop(t + 0.2);
     this.beatCount++;
+    this.beatPulse = 1.0;
   }
 
   click() {
@@ -957,7 +1075,9 @@ export default function Game() {
     nextBossScore: 5000,
     bossIntroTimer: 0,
     introTimer: 0,
-    gameStartTime: 0
+    gameStartTime: 0,
+    gravityDir: 1,
+    hazardTimer: 0
   });
 
   const [scale, setScale] = useState(1);
@@ -1159,7 +1279,9 @@ export default function Game() {
       lastPowerup: 0,
       bgX: 0,
       nextBossScore: 5000,
-      introTimer: 180 // 3 seconds at 60fps
+      introTimer: 180, // 3 seconds at 60fps
+      gravityDir: 1,
+      hazardTimer: 0
     };
     entitiesRef.current.gameStartTime = Date.now();
     setGameState('intro');
@@ -1246,6 +1368,35 @@ export default function Game() {
               }
             }
           }
+        }
+        
+        // World Hazards
+        if (selectedWorld === 'volcano') {
+          if (Math.random() < 0.02) {
+            // Spawn lava ball from bottom
+            entities.particles.push({
+              x: Math.random() * CANVAS_WIDTH,
+              y: CANVAS_HEIGHT,
+              vx: (Math.random() - 0.5) * 4,
+              vy: -Math.random() * 8 - 5,
+              life: 1,
+              color: '#ef4444',
+              size: 10,
+              type: 'fiery'
+            });
+          }
+        } else if (selectedWorld === 'underwater') {
+          // Current pushes player up/down
+          const currentForce = Math.sin(now * 0.001) * 1.5;
+          player.y += currentForce;
+        } else if (selectedWorld === 'out_of_this_world') {
+          // Gravity shifts every 5 seconds
+          if (Math.floor(now / 5000) % 2 === 0) {
+            entities.gravityDir = 1;
+          } else {
+            entities.gravityDir = -1;
+          }
+          player.y += entities.gravityDir * 0.8;
         }
         
         // Clamp player
@@ -1832,6 +1983,40 @@ export default function Game() {
 
       // Parallax Clouds/Stars Detail
       ctx.save();
+      
+      // 1. Far Far Background (Stars/Clouds)
+      const farFarX = entities.bgX * 0.05;
+      if (selectedWorld === 'out_of_this_world' || selectedWorld === 'cyberpunk' || selectedWorld === 'new_year') {
+        ctx.fillStyle = '#fff';
+        for (let i = 0; i < 150; i++) {
+          const x = (i * 137 + farFarX) % CANVAS_WIDTH;
+          const y = (i * 71) % CANVAS_HEIGHT;
+          ctx.globalAlpha = 0.1 + Math.sin(now * 0.001 + i) * 0.3;
+          ctx.fillRect(x, y, 1, 1);
+        }
+      } else if (selectedWorld === 'underwater') {
+        // Distant bubbles
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        for (let i = 0; i < 30; i++) {
+          const x = (i * 137 + farFarX) % CANVAS_WIDTH;
+          const y = (i * 71 - now * 0.02) % CANVAS_HEIGHT;
+          ctx.beginPath();
+          ctx.arc(x, y, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (selectedWorld === 'disco') {
+        // Pulsing disco stars
+        const pulse = soundManager.getBeatPulse();
+        ctx.fillStyle = '#fff';
+        for (let i = 0; i < 50; i++) {
+          const x = (i * 137 + farFarX) % CANVAS_WIDTH;
+          const y = (i * 71) % CANVAS_HEIGHT;
+          ctx.globalAlpha = (0.1 + Math.sin(now * 0.005 + i) * 0.2) * (1 + pulse);
+          ctx.fillRect(x, y, 1 + pulse * 2, 1 + pulse * 2);
+        }
+      }
+      ctx.globalAlpha = 1;
+
       if (selectedWorld === 'gg') {
         // Pixel style animated clouds for GG world
         ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
@@ -1924,13 +2109,15 @@ export default function Game() {
         }
         ctx.globalAlpha = 1;
       } else if (selectedWorld === 'disco') {
+        const pulse = soundManager.getBeatPulse();
         const colors = ['#f472b6', '#60a5fa', '#34d399', '#fbbf24'];
         for (let i = 0; i < 20; i++) {
           ctx.fillStyle = colors[i % colors.length];
           const x = (i * 157 + now * 0.2) % CANVAS_WIDTH;
           const y = (i * 89) % CANVAS_HEIGHT;
-          ctx.globalAlpha = 0.4;
-          ctx.fillRect(x, y, 10, 10);
+          ctx.globalAlpha = 0.2 + pulse * 0.4;
+          const size = 10 + pulse * 15;
+          ctx.fillRect(x, y, size, size);
         }
         ctx.globalAlpha = 1;
       } else if (selectedWorld === 'gold_mine') {
@@ -1993,12 +2180,27 @@ export default function Game() {
       }
       
       if (selectedWorld === 'disco') {
+        const pulse = soundManager.getBeatPulse();
+        ctx.scale(1 + pulse * 0.1, 1 + pulse * 0.1);
         // Disco ball lines
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 + pulse * 0.4})`;
         ctx.lineWidth = 1;
         for (let i = -40; i < 40; i += 10) {
           ctx.beginPath(); ctx.moveTo(i, -Math.sqrt(1600 - i * i)); ctx.lineTo(i, Math.sqrt(1600 - i * i)); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(-Math.sqrt(1600 - i * i), i); ctx.lineTo(Math.sqrt(1600 - i * i), i); ctx.stroke();
+        }
+        // Beams reacting to beat
+        if (pulse > 0.5) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+          for (let b = 0; b < 8; b++) {
+            const angle = (b * Math.PI) / 4 + now * 0.005;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(Math.cos(angle - 0.1) * 1000, Math.sin(angle - 0.1) * 1000);
+            ctx.lineTo(Math.cos(angle + 0.1) * 1000, Math.sin(angle + 0.1) * 1000);
+            ctx.closePath();
+            ctx.fill();
+          }
         }
       }
       ctx.restore();
@@ -2824,6 +3026,18 @@ export default function Game() {
         player.trail.forEach((p, i) => {
           const alpha = 1 - i / player.trail.length;
           let color = customization.trailColor;
+          
+          if (selectedWorld === 'disco') {
+            const pulse = soundManager.getBeatPulse();
+            const r = (PLAYER_SIZE / 2) * alpha * (1 + pulse * 0.8);
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+            ctx.strokeStyle = `hsla(${(now * 0.1 + i * 20) % 360}, 100%, 70%, ${alpha})`;
+            ctx.lineWidth = 1 + pulse * 5;
+            ctx.stroke();
+            if (pulse < 0.3) return; // Skip standard trail if pulse is low to keep it clean
+          }
+
           if (customization.costume === 'vibe_coding') {
             const hue = (now * 0.5 + i * 30) % 360;
             const distortion = Math.sin(now * 0.01 + i * 0.5) * 5;
@@ -4196,27 +4410,6 @@ export default function Game() {
                 </div>
               )}
             </div>
-
-            {/* Objective UI */}
-            {objective && !hasCompletedTutorial && (
-              <motion.div 
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                className="mt-4 bg-slate-900/80 backdrop-blur-md p-4 rounded-2xl border-l-4 border-purple-500 shadow-xl max-w-xs"
-              >
-                <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1">Current Objective</p>
-                <p className="text-sm font-bold text-white">{objective.text}</p>
-                {objective.target > 1 && (
-                  <div className="mt-2 w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(objective.current / objective.target) * 100}%` }}
-                      className="h-full bg-purple-500"
-                    />
-                  </div>
-                )}
-              </motion.div>
-            )}
           </div>
           <div className="text-right">
             <div className="text-xs uppercase tracking-widest text-slate-500 font-bold">High Score</div>
